@@ -78,3 +78,6 @@ class Domino:
             pg.draw.circle(surface, DOMINO_DOT_COLOR, (x0 + dot_x, y0 - dot_y), CELL_SIZE // 6 // 2)
 
         return surface
+
+    def rotate(self):
+        pass
