@@ -182,7 +182,7 @@ class Chain:
             domino_rect.width,
             domino_rect.height
         )
-        self.domino_list.append(ChainElement(domino_rect, domino))
+        self.domino_list.insert(0, ChainElement(domino_rect, domino))
         self.left_line = domino_rect.left
 
         if domino.is_right_orientation:
