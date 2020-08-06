@@ -8,17 +8,35 @@ ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 class Scope:
 
     SCROLL_STEP = 50
+    SCROLL_LIMIT = 3 * CELL_SIZE
 
     def __init__(self, left_line, right_line):
         self.left_line, self.right_line = left_line, right_line
+        self.width = right_line - left_line
 
-    def move_left(self):
-        self.left_line -= self.SCROLL_STEP
-        self.right_line -= self.SCROLL_STEP
+    def step_left(self, chain):
+        left_limit = chain.left_line - self.SCROLL_LIMIT
+        if self.left_line >= left_limit:
+            self.left_line -= self.SCROLL_STEP
+            self.right_line -= self.SCROLL_STEP
+        if self.left_line < left_limit:
+            self.move_to_left(chain)
 
-    def move_right(self):
-        self.left_line += self.SCROLL_STEP
-        self.right_line += self.SCROLL_STEP
+    def step_right(self, chain):
+        right_limit = chain.right_line + self.SCROLL_LIMIT
+        if self.right_line <= right_limit:
+            self.left_line += self.SCROLL_STEP
+            self.right_line += self.SCROLL_STEP
+        if self.right_line > right_limit:
+            self.move_to_right(chain)
+
+    def move_to_left(self, chain):
+        self.left_line = chain.left_line - self.SCROLL_LIMIT
+        self.right_line = self.left_line + self.width
+
+    def move_to_right(self, chain):
+        self.right_line = chain.right_line + self.SCROLL_LIMIT
+        self.left_line = self.right_line - self.width
 
     def rect_in_scope(self, rect):
         return (self.left_line <= rect.left <= self.right_line) or (self.left_line <= rect.right <= self.right_line)

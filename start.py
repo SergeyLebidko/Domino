@@ -45,13 +45,19 @@ def main():
                 pg.quit()
                 exit()
 
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_LEFT:
+                    scope.move_to_left(chain)
+                if event.key == pg.K_RIGHT:
+                    scope.move_to_right(chain)
+
             if event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == pg.BUTTON_LEFT:
                     pass
                 if event.button == pg.BUTTON_WHEELDOWN:
-                    scope.move_left()
+                    scope.step_left(chain)
                 if event.button == pg.BUTTON_WHEELUP:
-                    scope.move_right()
+                    scope.step_right(chain)
 
         # Блок функций отрисовки
         draw_background(sc)
