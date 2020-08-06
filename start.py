@@ -1,7 +1,7 @@
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS
-from utils import draw_background
-from classes import Domino
+from utils import draw_background, draw_chain
+from classes import Domino, Chain, Scope
 
 
 def main():
@@ -14,8 +14,29 @@ def main():
     # Создаем объект для ограничения FPS
     clock = pg.time.Clock()
 
+    # Создаем объект для отображения выбранной части цепочки
+    scope = Scope(- W // 2, W // 2)
+
     # Создаем тестовые домино
     domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
+
+    # Создаем тестовую цепочку
+    import random
+    chain = None
+    random.shuffle(domino_list)
+    while domino_list:
+        domino = domino_list.pop()
+        if domino.is_double:
+            domino.rotate(random.choice(Domino.VERTICAL_ORIENTATIONS))
+        else:
+            domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
+        if not chain:
+            chain = Chain(domino)
+        else:
+            if random.choice([True, False]):
+                chain.add_to_right(domino)
+            else:
+                chain.add_to_left(domino)
 
     while True:
         events = pg.event.get()
@@ -28,21 +49,15 @@ def main():
                 if event.button == pg.BUTTON_LEFT:
                     pass
                 if event.button == pg.BUTTON_WHEELDOWN:
-                    pass
+                    scope.move_left()
                 if event.button == pg.BUTTON_WHEELUP:
-                    pass
+                    scope.move_right()
 
         # Блок функций отрисовки
         draw_background(sc)
 
-        # Отрисовка тестовых домино
-        x0, y0 = 10, 10
-        for domino in domino_list:
-            sc.blit(domino.surface, (x0, y0))
-            if domino.side2 == 6:
-                x0, y0 = 10, y0 + 70
-            else:
-                x0 += 130
+        # Отрисовка тестовой цепочки
+        draw_chain(sc, chain, scope)
 
         pg.display.update()
 

@@ -5,7 +5,27 @@ from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COL
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
 
+class Scope:
+
+    SCROLL_STEP = 50
+
+    def __init__(self, left_line, right_line):
+        self.left_line, self.right_line = left_line, right_line
+
+    def move_left(self):
+        self.left_line -= self.SCROLL_STEP
+        self.right_line -= self.SCROLL_STEP
+
+    def move_right(self):
+        self.left_line += self.SCROLL_STEP
+        self.right_line += self.SCROLL_STEP
+
+    def rect_in_scope(self, rect):
+        return (self.left_line <= rect.left <= self.right_line) or (self.left_line <= rect.right <= self.right_line)
+
+
 class Domino:
+
     RIGHT_ORIENTATION = 1
     DOWN_ORIENTATION = 2
     LEFT_ORIENTATION = 3
@@ -28,6 +48,7 @@ class Domino:
         self.side1, self.side2 = side1, side2
         self.corner_points, self.dot_coords, self.separator_coords = self.create_coords()
         self.surface = self.create_surface()
+        self.rect = self.create_rect()
         self.orientation = self.RIGHT_ORIENTATION
 
     def create_coords(self):
@@ -86,6 +107,14 @@ class Domino:
 
         return surface
 
+    def create_rect(self):
+        return pg.Rect(
+            - self.surface.get_width() // 2,
+            self.surface.get_height() // 2,
+            self.surface.get_width(),
+            self.surface.get_height()
+        )
+
     def rotate(self, new_orientation):
         rotate_count = max(new_orientation, self.orientation) - min(new_orientation, self.orientation)
         if not rotate_count:
@@ -107,6 +136,7 @@ class Domino:
             self.dot_coords = [(- dot_y, dot_x) for dot_x, dot_y in self.dot_coords]
 
         self.surface = self.create_surface()
+        self.rect = self.create_rect()
         self.orientation = new_orientation
 
     @property
@@ -124,11 +154,15 @@ class Domino:
 
 class Chain:
 
+    TRANSPARENT_COLOR = (255, 0, 0)
+
     def __init__(self, domino):
-        self.surface = pg.Surface(W, H)
+        self.surface = pg.Surface((W, H))
+        self.surface.set_colorkey(self.TRANSPARENT_COLOR)
+
         self.domino_list = []
 
-        domino_rect = domino.surface.get_rect()
+        domino_rect = domino.rect
         self.domino_list.append(ChainElement(domino_rect, domino))
         self.left_line, self.right_line = domino_rect.left, domino_rect.right
 
@@ -150,9 +184,9 @@ class Chain:
         # if any(ex_flags):
         #     raise Exception('Некорректное добавления справа')
 
-        domino_rect = domino.surface.get_rect()
+        domino_rect = domino.rect
         domino_rect = pg.Rect(
-            self.right_line + 2 + domino_rect.width,
+            self.right_line + 2,
             domino_rect.y,
             domino_rect.width,
             domino_rect.height
@@ -175,7 +209,7 @@ class Chain:
         # if any(ex_flags):
         #     raise Exception('Некорректное добавления слева')
 
-        domino_rect = domino.surface.get_rect()
+        domino_rect = domino.rect
         domino_rect = pg.Rect(
             self.left_line - 2 - domino_rect.width,
             domino_rect.y,
@@ -189,3 +223,12 @@ class Chain:
             self.left_side = domino.side1
         if domino.is_left_orientation:
             self.left_side = domino.side2
+
+    def create_surface(self, scope):
+        self.surface.fill(self.TRANSPARENT_COLOR)
+
+        # Выбираем те домино, которые входят в переданный scope
+        scope_domino_list = [(rect, domino) for rect, domino in self.domino_list if scope.rect_in_scope(rect)]
+
+        for rect, domino in scope_domino_list:
+            self.surface.blit(domino.surface, (rect.x - scope.left_line, H // 2 - rect.y))
