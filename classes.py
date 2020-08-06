@@ -1,9 +1,11 @@
 import pygame as pg
-from settings import CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR
+from collections import namedtuple
+from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR
+
+ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
 
 class Domino:
-
     RIGHT_ORIENTATION = 1
     DOWN_ORIENTATION = 2
     LEFT_ORIENTATION = 3
@@ -106,3 +108,84 @@ class Domino:
 
         self.surface = self.create_surface()
         self.orientation = new_orientation
+
+    @property
+    def is_double(self):
+        return self.side1 == self.side2
+
+    @property
+    def is_right_orientation(self):
+        return self.orientation == self.RIGHT_ORIENTATION
+
+    @property
+    def is_left_orientation(self):
+        return self.orientation == self.LEFT_ORIENTATION
+
+
+class Chain:
+
+    def __init__(self, domino):
+        self.surface = pg.Surface(W, H)
+        self.domino_list = []
+
+        domino_rect = domino.surface.get_rect()
+        self.domino_list.append(ChainElement(domino_rect, domino))
+        self.left_line, self.right_line = domino_rect.left, domino_rect.right
+
+        if domino.is_double:
+            self.left_side, self.right_side = domino.side1, domino.side2
+        else:
+            if domino.is_right_orientation:
+                self.left_side, self.right_side = domino.side1, domino.side2
+            if domino.is_left_orientation:
+                self.left_side, self.right_side = domino.side2, domino.side1
+
+    def add_to_right(self, domino):
+        # Проверка возможности добавления домино в правую часть цепочки
+        # ex_flags = [
+        #     domino.is_double and domino.side1 != self.right_side,
+        #     domino.is_right_orientation and domino.side1 != self.right_side,
+        #     domino.is_left_orientation and domino.side2 != self.right_side
+        # ]
+        # if any(ex_flags):
+        #     raise Exception('Некорректное добавления справа')
+
+        domino_rect = domino.surface.get_rect()
+        domino_rect = pg.Rect(
+            self.right_line + 2 + domino_rect.width,
+            domino_rect.y,
+            domino_rect.width,
+            domino_rect.height
+        )
+        self.domino_list.append(ChainElement(domino_rect, domino))
+        self.right_line = domino_rect.right
+
+        if domino.is_right_orientation:
+            self.right_side = domino.side2
+        if domino.is_left_orientation:
+            self.right_side = domino.side1
+
+    def add_to_left(self, domino):
+        # Проверка возможности добавления домино в левую часть цепочки
+        # ex_flags = [
+        #     domino.is_double and domino.side1 != self.left_side,
+        #     domino.is_right_orientation and domino.side2 != self.left_side,
+        #     domino.is_left_orientation and domino.side1 != self.left_side
+        # ]
+        # if any(ex_flags):
+        #     raise Exception('Некорректное добавления слева')
+
+        domino_rect = domino.surface.get_rect()
+        domino_rect = pg.Rect(
+            self.left_line - 2 - domino_rect.width,
+            domino_rect.y,
+            domino_rect.width,
+            domino_rect.height
+        )
+        self.domino_list.append(ChainElement(domino_rect, domino))
+        self.left_line = domino_rect.left
+
+        if domino.is_right_orientation:
+            self.left_side = domino.side1
+        if domino.is_left_orientation:
+            self.left_side = domino.side2
