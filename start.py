@@ -16,6 +16,7 @@ def main():
 
     # Создаем тестовый домино
     domino = Domino(5, 6)
+    domino.rotate(Domino.UP_ORIENTATION)
 
     while True:
         events = pg.event.get()

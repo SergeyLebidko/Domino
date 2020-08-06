@@ -3,6 +3,15 @@ from settings import CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DO
 
 
 class Domino:
+
+    RIGHT_ORIENTATION = 1
+    DOWN_ORIENTATION = 2
+    LEFT_ORIENTATION = 3
+    UP_ORIENTATION = 4
+
+    VERTICAL_ORIENTATIONS = UP_ORIENTATION, DOWN_ORIENTATION
+    HORIZONTAL_ORIENTATION = LEFT_ORIENTATION, RIGHT_ORIENTATION
+
     dot_data = {
         0: [],
         1: [(0, 0)],
@@ -17,6 +26,7 @@ class Domino:
         self.side1, self.side2 = side1, side2
         self.corner_points, self.dot_coords, self.separator_coords = self.create_coords()
         self.surface = self.create_surface()
+        self.orientation = self.RIGHT_ORIENTATION
 
     def create_coords(self):
         # Формируем опорные величины
@@ -30,14 +40,9 @@ class Domino:
 
         # Формируем список точек на домино
         dot_coords = []
-
-        dot_list = self.dot_data[self.side1]
-        for dot in dot_list:
-            dot_coords.append((left_x0 + dot[0] * dx, left_y0 + dot[1] * dy))
-
-        dot_list = self.dot_data[self.side2]
-        for dot in dot_list:
-            dot_coords.append((right_x0 + dot[0] * dx, right_y0 + dot[1] * dy))
+        for x0, y0, side in [(left_x0, left_y0, self.side1), (right_x0, right_y0, self.side2)]:
+            for dot_x, dot_y in self.dot_data[side]:
+                dot_coords.append((x0 + dot_x * dx, y0 + dot_y * dy))
 
         # Формируем координаты разделительной линии
         separator_x1, separator_y1 = 0, dy * 2
@@ -79,5 +84,25 @@ class Domino:
 
         return surface
 
-    def rotate(self):
-        pass
+    def rotate(self, new_orientation):
+        rotate_count = max(new_orientation, self.orientation) - min(new_orientation, self.orientation)
+        if not rotate_count:
+            return
+        for _ in range(rotate_count):
+            # Поворачиваем угловые точки
+            x1, y1 = self.corner_points[0]
+            x2, y2 = self.corner_points[1]
+            self.corner_points[0] = - y1, x1
+            self.corner_points[1] = - y2, x2
+
+            # Поворачиваем координаты разделительной линии
+            separator_x1, separator_y1 = self.separator_coords[0]
+            separator_x2, separator_y2 = self.separator_coords[1]
+            self.separator_coords[0] = - separator_y1, separator_x1
+            self.separator_coords[1] = - separator_y2, separator_x2
+
+            # Поворачиваем точки на половинках домино
+            self.dot_coords = [(- dot_y, dot_x) for dot_x, dot_y in self.dot_coords]
+
+        self.surface = self.create_surface()
+        self.orientation = new_orientation
