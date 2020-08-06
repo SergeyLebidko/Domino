@@ -38,6 +38,9 @@ class Scope:
         self.right_line = chain.right_line + self.SCROLL_LIMIT
         self.left_line = self.right_line - self.width
 
+    def move_to_line(self, line):
+        self.left_line, self.right_line = line - self.width // 2, line + self.width // 2
+
     def rect_in_scope(self, rect):
         return (self.left_line <= rect.left <= self.right_line) or (self.left_line <= rect.right <= self.right_line)
 
@@ -244,9 +247,14 @@ class Chain:
 
     def create_surface(self, scope):
         self.surface.fill(self.TRANSPARENT_COLOR)
-
-        # Выбираем те домино, которые входят в переданный scope
         scope_domino_list = [(rect, domino) for rect, domino in self.domino_list if scope.rect_in_scope(rect)]
-
         for rect, domino in scope_domino_list:
             self.surface.blit(domino.surface, (rect.x - scope.left_line, H // 2 - rect.y))
+
+    @property
+    def width(self):
+        return self.right_line - self.left_line
+
+    @property
+    def center_line(self):
+        return (self.left_line + self.right_line) // 2

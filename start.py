@@ -5,7 +5,6 @@ from classes import Domino, Chain, Scope
 
 
 def main():
-
     # Инициализируем окно игры
     pg.init()
     sc = pg.display.set_mode((W, H))
@@ -14,9 +13,6 @@ def main():
     # Создаем объект для ограничения FPS
     clock = pg.time.Clock()
 
-    # Создаем объект для отображения выбранной части цепочки
-    scope = Scope(- W // 2, W // 2)
-
     # Создаем тестовые домино
     domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
 
@@ -24,7 +20,8 @@ def main():
     import random
     chain = None
     random.shuffle(domino_list)
-    while domino_list:
+    count = 0
+    while domino_list and count < 15:
         domino = domino_list.pop()
         if domino.is_double:
             domino.rotate(random.choice(Domino.VERTICAL_ORIENTATIONS))
@@ -37,6 +34,11 @@ def main():
                 chain.add_to_right(domino)
             else:
                 chain.add_to_left(domino)
+        count += 1
+
+    # Создаем объект для отображения выбранной части цепочки и центрируем его по цепочке
+    scope = Scope(- W // 2, W // 2)
+    scope.move_to_line(chain.center_line)
 
     while True:
         events = pg.event.get()
