@@ -14,9 +14,8 @@ def main():
     # Создаем объект для ограничения FPS
     clock = pg.time.Clock()
 
-    # Создаем тестовый домино
-    domino = Domino(5, 6)
-    domino.rotate(Domino.UP_ORIENTATION)
+    # Создаем тестовые домино
+    domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
 
     while True:
         events = pg.event.get()
@@ -36,8 +35,14 @@ def main():
         # Блок функций отрисовки
         draw_background(sc)
 
-        # Отрисовка тестового домино
-        sc.blit(domino.surface, (100, 100))
+        # Отрисовка тестовых домино
+        x0, y0 = 10, 10
+        for domino in domino_list:
+            sc.blit(domino.surface, (x0, y0))
+            if domino.side2 == 6:
+                x0, y0 = 10, y0 + 70
+            else:
+                x0 += 130
 
         pg.display.update()
 
