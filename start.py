@@ -58,7 +58,7 @@ def main():
 
             if event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == pg.BUTTON_LEFT:
-                    pass
+                    edge_pane.click(event.pos)
                 if event.button == pg.BUTTON_WHEELDOWN:
                     scope.step_left(chain)
                 if event.button == pg.BUTTON_WHEELUP:

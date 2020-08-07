@@ -1,6 +1,7 @@
 import pygame as pg
 from collections import namedtuple
-from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR
+from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
+    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
@@ -38,13 +39,32 @@ class EdgePane:
         for surface, domino, delta in data:
             surface.fill(self.TRANSPARENT_COLOR)
             if delta > domino.width:
-                x, y = CELL_SIZE - domino.width // 2, CELL_SIZE - domino.height // 2
-                surface.blit(domino.surface, (x, y))
+                domino_rect = self.create_domino_rect(domino)
+                surface.blit(domino.surface, domino_rect)
+
+    @staticmethod
+    def create_domino_rect(domino):
+        x, y = CELL_SIZE - domino.width // 2, CELL_SIZE - domino.height // 2
+        return pg.Rect(x, y, domino.width, domino.height)
+
+    def click(self, pos):
+        left_domino_rect = self.create_domino_rect(self.chain.left_domino)
+        left_domino_rect.x = LEFT_EDGE_PANE_COORDS[0] + left_domino_rect.x
+        left_domino_rect.y = LEFT_EDGE_PANE_COORDS[1] + left_domino_rect.y
+
+        right_domino_rect = self.create_domino_rect(self.chain.right_domino)
+        right_domino_rect.x = RIGHT_EDGE_PANE_COORDS[0] + right_domino_rect.x
+        right_domino_rect.y = RIGHT_EDGE_PANE_COORDS[1] + right_domino_rect.y
+
+        if left_domino_rect.collidepoint(pos):
+            self.scope.move_to_left(self.chain)
+        if right_domino_rect.collidepoint(pos):
+            self.scope.move_to_right(self.chain)
 
 
 class Scope:
 
-    SCROLL_STEP = 50
+    SCROLL_STEP = 40
     SCROLL_LIMIT = 3 * CELL_SIZE
 
     def __init__(self, left_line, right_line):

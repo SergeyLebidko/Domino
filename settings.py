@@ -24,3 +24,9 @@ DOMINO_BORDER_COLOR = (0, 0, 0)
 
 # Цвет точек на домино
 DOMINO_DOT_COLOR = (0, 0, 0)
+
+# Положение панели с крайним левым домино в цепочке
+LEFT_EDGE_PANE_COORDS = (CELL_SIZE // 2, H // 2 - int(3.5 * CELL_SIZE))
+
+# Положение панели с крайним правым домино в цепочке
+RIGHT_EDGE_PANE_COORDS = (W - (2 * CELL_SIZE + CELL_SIZE // 2), H // 2 - int(3.5 * CELL_SIZE))
