@@ -1,5 +1,5 @@
 import pygame as pg
-from settings import W, H, BACKGROUND_COLORS
+from settings import W, H, BACKGROUND_COLORS, CELL_SIZE
 
 
 def draw_background(surface):
@@ -15,3 +15,9 @@ def draw_chain(surface, chain, scope):
         scope.move_to_line(chain.center_line)
     chain.create_surface(scope)
     surface.blit(chain.surface, (0, 0))
+
+
+def draw_edge_pane(surface, edge_pane):
+    edge_pane.create_surfaces()
+    surface.blit(edge_pane.left_surface, (CELL_SIZE // 2, 3 * CELL_SIZE))
+    surface.blit(edge_pane.right_surface, (W - (2 * CELL_SIZE + CELL_SIZE // 2), 3 * CELL_SIZE))

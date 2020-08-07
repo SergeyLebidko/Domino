@@ -1,7 +1,7 @@
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS
-from utils import draw_background, draw_chain
-from classes import Domino, Chain, Scope
+from utils import draw_background, draw_chain, draw_edge_pane
+from classes import Domino, Chain, Scope, EdgePane
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
     chain = None
     random.shuffle(domino_list)
     count = 0
-    while domino_list and count < 15:
+    while domino_list and count < 29:
         domino = domino_list.pop()
         if domino.is_double:
             domino.rotate(random.choice(Domino.VERTICAL_ORIENTATIONS))
@@ -39,6 +39,9 @@ def main():
     # Создаем объект для отображения выбранной части цепочки и центрируем его по цепочке
     scope = Scope(- W // 2, W // 2)
     scope.move_to_line(chain.center_line)
+
+    # Создаем объект для отображения крайних домино в цепочке, если они в данный момент не видимы
+    edge_pane = EdgePane(chain, scope)
 
     while True:
         events = pg.event.get()
@@ -64,8 +67,11 @@ def main():
         # Блок функций отрисовки
         draw_background(sc)
 
-        # Отрисовка тестовой цепочки
+        # Отрисовка цепочки
         draw_chain(sc, chain, scope)
+
+        # Отрисовка панлей с крайними домино
+        draw_edge_pane(sc, edge_pane)
 
         pg.display.update()
 

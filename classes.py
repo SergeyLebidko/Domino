@@ -5,6 +5,43 @@ from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COL
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
 
+class EdgePane:
+
+    TRANSPARENT_COLOR = (255, 0, 0)
+
+    def __init__(self, chain, scope):
+        self.chain, self.scope = chain, scope
+        self.left_surface = pg.Surface((2 * CELL_SIZE, 2 * CELL_SIZE))
+        self.left_surface.set_colorkey(self.TRANSPARENT_COLOR)
+        self.left_surface.set_alpha(100)
+        self.right_surface = pg.Surface((2 * CELL_SIZE, 2 * CELL_SIZE))
+        self.right_surface.set_colorkey(self.TRANSPARENT_COLOR)
+        self.right_surface.set_alpha(100)
+
+    def create_surfaces(self):
+        self.left_surface.fill(self.TRANSPARENT_COLOR)
+        self.right_surface.fill(self.TRANSPARENT_COLOR)
+
+        data = [
+            (
+                self.left_surface,
+                self.chain.left_domino,
+                self.scope.left_line - self.chain.left_line
+            ),
+            (
+                self.right_surface,
+                self.chain.right_domino,
+                self.chain.right_line - self.scope.right_line
+            )
+        ]
+
+        for surface, domino, delta in data:
+            surface.fill(self.TRANSPARENT_COLOR)
+            if delta > domino.width:
+                x, y = CELL_SIZE - domino.width // 2, CELL_SIZE - domino.height // 2
+                surface.blit(domino.surface, (x, y))
+
+
 class Scope:
 
     SCROLL_STEP = 50
@@ -172,6 +209,14 @@ class Domino:
     def is_left_orientation(self):
         return self.orientation == self.LEFT_ORIENTATION
 
+    @property
+    def width(self):
+        return self.rect.width
+
+    @property
+    def height(self):
+        return self.rect.height
+
 
 class Chain:
 
@@ -258,3 +303,13 @@ class Chain:
     @property
     def center_line(self):
         return (self.left_line + self.right_line) // 2
+
+    @property
+    def left_domino(self):
+        _, domino = self.domino_list[0]
+        return domino
+
+    @property
+    def right_domino(self):
+        _, domino = self.domino_list[-1]
+        return domino
