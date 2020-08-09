@@ -1,7 +1,8 @@
+import random
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS
-from utils import draw_background, draw_chain, draw_edge_pane
-from classes import Domino, Chain, Scope, EdgePane
+from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane
+from classes import Domino, Chain, Scope, EdgePane, Storage
 
 
 def main():
@@ -13,28 +14,16 @@ def main():
     # Создаем объект для ограничения FPS
     clock = pg.time.Clock()
 
-    # Создаем тестовые домино
-    domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
+    # Созоаем хранилище
+    storage = Storage()
 
-    # Создаем тестовую цепочку
-    import random
-    chain = None
-    random.shuffle(domino_list)
-    count = 0
-    while domino_list and count < 29:
-        domino = domino_list.pop()
-        if domino.is_double:
-            domino.rotate(random.choice(Domino.VERTICAL_ORIENTATIONS))
-        else:
-            domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
-        if not chain:
-            chain = Chain(domino)
-        else:
-            if random.choice([True, False]):
-                chain.add_to_right(domino)
-            else:
-                chain.add_to_left(domino)
-        count += 1
+    # Создаем цепочку
+    start_domino = storage.take_domino()
+    if start_domino.is_double:
+        start_domino.rotate(Domino.UP_ORIENTATION)
+    else:
+        start_domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
+    chain = Chain(start_domino)
 
     # Создаем объект для отображения выбранной части цепочки и центрируем его по цепочке
     scope = Scope(- W // 2, W // 2)
@@ -70,8 +59,11 @@ def main():
         # Отрисовка цепочки
         draw_chain(sc, chain, scope)
 
-        # Отрисовка панлей с крайними домино
+        # Отрисовка панелей с крайними домино
         draw_edge_pane(sc, edge_pane)
+
+        # Отрисовка панели с хранилищем
+        draw_storage_pane(sc, storage)
 
         pg.display.update()
 

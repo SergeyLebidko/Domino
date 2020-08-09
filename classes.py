@@ -1,27 +1,26 @@
+import random
 import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
-    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS
+    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
 
 class EdgePane:
 
-    TRANSPARENT_COLOR = (255, 0, 0)
-
     def __init__(self, chain, scope):
         self.chain, self.scope = chain, scope
         self.left_surface = pg.Surface((2 * CELL_SIZE, 2 * CELL_SIZE))
-        self.left_surface.set_colorkey(self.TRANSPARENT_COLOR)
+        self.left_surface.set_colorkey(TRANSPARENT_COLOR)
         self.left_surface.set_alpha(100)
         self.right_surface = pg.Surface((2 * CELL_SIZE, 2 * CELL_SIZE))
-        self.right_surface.set_colorkey(self.TRANSPARENT_COLOR)
+        self.right_surface.set_colorkey(TRANSPARENT_COLOR)
         self.right_surface.set_alpha(100)
 
     def create_surfaces(self):
-        self.left_surface.fill(self.TRANSPARENT_COLOR)
-        self.right_surface.fill(self.TRANSPARENT_COLOR)
+        self.left_surface.fill(TRANSPARENT_COLOR)
+        self.right_surface.fill(TRANSPARENT_COLOR)
 
         data = [
             (
@@ -37,7 +36,7 @@ class EdgePane:
         ]
 
         for surface, domino, delta in data:
-            surface.fill(self.TRANSPARENT_COLOR)
+            surface.fill(TRANSPARENT_COLOR)
             if delta > domino.width:
                 domino_rect = self.create_domino_rect(domino)
                 surface.blit(domino.surface, domino_rect)
@@ -240,11 +239,9 @@ class Domino:
 
 class Chain:
 
-    TRANSPARENT_COLOR = (255, 0, 0)
-
     def __init__(self, domino):
         self.surface = pg.Surface((W, H))
-        self.surface.set_colorkey(self.TRANSPARENT_COLOR)
+        self.surface.set_colorkey(TRANSPARENT_COLOR)
 
         self.domino_list = []
 
@@ -311,7 +308,7 @@ class Chain:
             self.left_side = domino.side2
 
     def create_surface(self, scope):
-        self.surface.fill(self.TRANSPARENT_COLOR)
+        self.surface.fill(TRANSPARENT_COLOR)
         scope_domino_list = [(rect, domino) for rect, domino in self.domino_list if scope.rect_in_scope(rect)]
         for rect, domino in scope_domino_list:
             self.surface.blit(domino.surface, (rect.x - scope.left_line, H // 2 - rect.y))
@@ -333,3 +330,44 @@ class Chain:
     def right_domino(self):
         _, domino = self.domino_list[-1]
         return domino
+
+
+class Storage:
+
+    BACKGROUND_COLOR_1 = (180, 180, 180)
+    BACKGROUND_COLOR_2 = (240, 240, 240)
+    CIRCLE_COLOR = (50, 50, 255)
+    FONT_COLOR = (255, 255, 255)
+
+    def __init__(self):
+        self.domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
+        random.shuffle(self.domino_list)
+        self.surface = pg.Surface((CELL_SIZE * 2, CELL_SIZE * 3))
+        self.surface.set_colorkey(TRANSPARENT_COLOR)
+        self.font = pg.font.Font(None, 24)
+
+    def create_surface(self):
+        self.surface.fill(TRANSPARENT_COLOR)
+
+        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_1, (CELL_SIZE // 2, CELL_SIZE // 2, CELL_SIZE, 2 * CELL_SIZE))
+        pg.draw.rect(
+            self.surface,
+            self.BACKGROUND_COLOR_2,
+            (CELL_SIZE // 2 + CELL_SIZE // 4, CELL_SIZE // 2 + CELL_SIZE // 4, CELL_SIZE // 2, 3 * CELL_SIZE // 2)
+        )
+
+        pg.draw.rect(self.surface, DOMINO_BORDER_COLOR, (CELL_SIZE // 2, CELL_SIZE // 2, CELL_SIZE, 2 * CELL_SIZE), 1)
+
+        pg.draw.circle(self.surface, self.CIRCLE_COLOR, (3 * CELL_SIZE // 2, CELL_SIZE // 2), CELL_SIZE // 3)
+
+        font_surface = self.font.render(str(self.storage_size), 1, self.FONT_COLOR)
+        font_rect = font_surface.get_rect()
+
+        self.surface.blit(font_surface, (3 * CELL_SIZE // 2 - font_rect.width // 2, CELL_SIZE // 2 - font_rect.height // 2))
+
+    @property
+    def storage_size(self):
+        return len(self.domino_list)
+
+    def take_domino(self):
+        return self.domino_list.pop()
