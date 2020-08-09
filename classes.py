@@ -2,7 +2,7 @@ import random
 import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
-    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR
+    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
@@ -348,6 +348,8 @@ class Storage:
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
+        if not self.storage_size:
+            return
 
         # Рисуем внутреннюю область
         domino_x, domino_y = CELL_SIZE // 2, CELL_SIZE // 2
@@ -381,3 +383,11 @@ class Storage:
 
     def take_domino(self):
         return self.domino_list.pop()
+
+    def click(self, pos):
+        if self.storage_size:
+            click_x = pos[0] - STORAGE_PANE_COORDS[0] - CELL_SIZE // 2
+            click_y = pos[1] - STORAGE_PANE_COORDS[1] - CELL_SIZE // 2
+            domino_rect = pg.Rect(0, 0, CELL_SIZE, 2 * CELL_SIZE)
+            if domino_rect.collidepoint(click_x, click_y):
+                return self.domino_list.pop()
