@@ -32,13 +32,14 @@ def main():
         start_domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
     chain = Chain(start_domino)
 
-    # Связываем пул, цепочку и хранилище
-    player_pool.set_chain(chain)
-    storage.set_player_pool(player_pool)
-
     # Создаем объект для отображения выбранной части цепочки и центрируем его по цепочке
     scope = Scope(- W // 2, W // 2)
     scope.move_to_line(chain.center_line)
+
+    # Связываем пул, цепочку, хранилище и объект для отображения цепочки
+    player_pool.set_chain(chain)
+    player_pool.set_scope(scope)
+    storage.set_player_pool(player_pool)
 
     # Создаем объект для отображения крайних домино в цепочке, если они в данный момент не видимы
     edge_pane = EdgePane(chain, scope)

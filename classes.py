@@ -192,9 +192,13 @@ class Domino:
         )
 
     def rotate(self, new_orientation):
-        rotate_count = max(new_orientation, self.orientation) - min(new_orientation, self.orientation)
-        if not rotate_count:
+        if new_orientation == self.orientation:
             return
+        if new_orientation > self.orientation:
+            rotate_count = new_orientation - self.orientation
+        else:
+            rotate_count = new_orientation + 4 - self.orientation
+
         for _ in range(rotate_count):
             # Поворачиваем угловые точки
             x1, y1 = self.corner_points[0]
@@ -411,11 +415,15 @@ class PlayerPool:
     def __init__(self):
         self.pool = []
         self.chain = None
+        self.scope = None
         self.surface = pg.Surface((self.PANE_WIDTH, self.PANE_HEIGHT))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
 
     def set_chain(self, chain):
         self.chain = chain
+
+    def set_scope(self, scope):
+        self.scope = scope
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
@@ -483,29 +491,35 @@ class PlayerPool:
             domino = pool_element['domino']
 
             if left_arrow_rect and left_arrow_rect.collidepoint(click_x, click_y):
-                if domino.is_double and domino.side1 == self.chain.left_side:
+                if domino.is_double:
                     self.chain.add_to_left(domino)
+                    self.scope.move_to_left(self.chain)
                     break
                 if self.chain.left_side == domino.side1:
                     domino.rotate(Domino.LEFT_ORIENTATION)
                     self.chain.add_to_left(domino)
+                    self.scope.move_to_left(self.chain)
                     break
-                if self.chain.right_side == domino.side2:
+                if self.chain.left_side == domino.side2:
                     domino.rotate(Domino.RIGHT_ORIENTATION)
                     self.chain.add_to_left(domino)
+                    self.scope.move_to_left(self.chain)
                     break
 
             if right_arrow_rect and right_arrow_rect.collidepoint(click_x, click_y):
-                if domino.is_double and domino.side1 == self.chain.right_side:
+                if domino.is_double:
                     self.chain.add_to_right(domino)
+                    self.scope.move_to_right(self.chain)
                     break
                 if self.chain.right_side == domino.side1:
                     domino.rotate(Domino.RIGHT_ORIENTATION)
                     self.chain.add_to_right(domino)
+                    self.scope.move_to_right(self.chain)
                     break
                 if self.chain.right_side == domino.side2:
                     domino.rotate(Domino.LEFT_ORIENTATION)
                     self.chain.add_to_right(domino)
+                    self.scope.move_to_right(self.chain)
                     break
 
         else:
