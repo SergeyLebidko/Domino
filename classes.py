@@ -334,9 +334,9 @@ class Chain:
 
 class Storage:
 
-    BACKGROUND_COLOR_1 = (180, 180, 180)
-    BACKGROUND_COLOR_2 = (240, 240, 240)
-    CIRCLE_COLOR = (50, 50, 255)
+    BACKGROUND_COLOR_1 = (224, 207, 177)
+    BACKGROUND_COLOR_2 = (255, 229, 180)
+    CIRCLE_COLOR = (50, 150, 0)
     FONT_COLOR = (255, 255, 255)
 
     def __init__(self):
@@ -349,17 +349,27 @@ class Storage:
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
 
-        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_1, (CELL_SIZE // 2, CELL_SIZE // 2, CELL_SIZE, 2 * CELL_SIZE))
-        pg.draw.rect(
-            self.surface,
-            self.BACKGROUND_COLOR_2,
-            (CELL_SIZE // 2 + CELL_SIZE // 4, CELL_SIZE // 2 + CELL_SIZE // 4, CELL_SIZE // 2, 3 * CELL_SIZE // 2)
-        )
+        # Рисуем внутреннюю область
+        domino_x, domino_y = CELL_SIZE // 2, CELL_SIZE // 2
+        domino_width, domino_height = CELL_SIZE, CELL_SIZE * 2
+        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_1, (domino_x, domino_y, domino_width, domino_height))
 
+        inner_x, inner_y = domino_x + CELL_SIZE // 6, domino_y + CELL_SIZE // 6
+        inner_w, inner_h = 4 * CELL_SIZE // 6, 4 * CELL_SIZE // 6
+        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_2, (inner_x, inner_y, inner_w, inner_h))
+
+        inner_y = domino_y + 7 * CELL_SIZE // 6
+        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_2, (inner_x, inner_y, inner_w, inner_h))
+
+        line_x1, line_y1 = domino_x + CELL_SIZE // 6, domino_y + CELL_SIZE
+        line_x2, line_y2 = domino_x + 5 * CELL_SIZE // 6, domino_y + CELL_SIZE
+        pg.draw.line(self.surface, self.BACKGROUND_COLOR_2, (line_x1, line_y1), (line_x2, line_y2), 3)
+
+        # Рисуем границу
         pg.draw.rect(self.surface, DOMINO_BORDER_COLOR, (CELL_SIZE // 2, CELL_SIZE // 2, CELL_SIZE, 2 * CELL_SIZE), 1)
 
+        # Рисуем область вывода количества домино в хранилище
         pg.draw.circle(self.surface, self.CIRCLE_COLOR, (3 * CELL_SIZE // 2, CELL_SIZE // 2), CELL_SIZE // 3)
-
         font_surface = self.font.render(str(self.storage_size), 1, self.FONT_COLOR)
         font_rect = font_surface.get_rect()
 
