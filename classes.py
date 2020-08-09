@@ -3,6 +3,7 @@ import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
     LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS
+from utils import get_player_pool_position
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
@@ -62,7 +63,6 @@ class EdgePane:
 
 
 class Scope:
-
     SCROLL_STEP = 40
     SCROLL_LIMIT = 3 * CELL_SIZE
 
@@ -102,7 +102,6 @@ class Scope:
 
 
 class Domino:
-
     RIGHT_ORIENTATION = 1
     DOWN_ORIENTATION = 2
     LEFT_ORIENTATION = 3
@@ -259,13 +258,13 @@ class Chain:
 
     def add_to_right(self, domino):
         # Проверка возможности добавления домино в правую часть цепочки
-        # ex_flags = [
-        #     domino.is_double and domino.side1 != self.right_side,
-        #     domino.is_right_orientation and domino.side1 != self.right_side,
-        #     domino.is_left_orientation and domino.side2 != self.right_side
-        # ]
-        # if any(ex_flags):
-        #     raise Exception('Некорректное добавления справа')
+        ex_flags = [
+            domino.is_double and domino.side1 != self.right_side,
+            domino.is_right_orientation and domino.side1 != self.right_side,
+            domino.is_left_orientation and domino.side2 != self.right_side
+        ]
+        if any(ex_flags):
+            raise Exception('Некорректное добавления справа')
 
         domino_rect = domino.rect
         domino_rect = pg.Rect(
@@ -284,13 +283,13 @@ class Chain:
 
     def add_to_left(self, domino):
         # Проверка возможности добавления домино в левую часть цепочки
-        # ex_flags = [
-        #     domino.is_double and domino.side1 != self.left_side,
-        #     domino.is_right_orientation and domino.side2 != self.left_side,
-        #     domino.is_left_orientation and domino.side1 != self.left_side
-        # ]
-        # if any(ex_flags):
-        #     raise Exception('Некорректное добавления слева')
+        ex_flags = [
+            domino.is_double and domino.side1 != self.left_side,
+            domino.is_right_orientation and domino.side2 != self.left_side,
+            domino.is_left_orientation and domino.side1 != self.left_side
+        ]
+        if any(ex_flags):
+            raise Exception('Некорректное добавления слева')
 
         domino_rect = domino.rect
         domino_rect = pg.Rect(
@@ -340,11 +339,15 @@ class Storage:
     FONT_COLOR = (255, 255, 255)
 
     def __init__(self):
+        self.player_pool = None
         self.domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
         random.shuffle(self.domino_list)
         self.surface = pg.Surface((CELL_SIZE * 2, CELL_SIZE * 3))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
         self.font = pg.font.Font(None, 24)
+
+    def set_player_pool(self, player_pool):
+        self.player_pool = player_pool
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
@@ -375,7 +378,8 @@ class Storage:
         font_surface = self.font.render(str(self.storage_size), 1, self.FONT_COLOR)
         font_rect = font_surface.get_rect()
 
-        self.surface.blit(font_surface, (3 * CELL_SIZE // 2 - font_rect.width // 2, CELL_SIZE // 2 - font_rect.height // 2))
+        self.surface.blit(font_surface,
+                          (3 * CELL_SIZE // 2 - font_rect.width // 2, CELL_SIZE // 2 - font_rect.height // 2))
 
     @property
     def storage_size(self):
@@ -385,9 +389,126 @@ class Storage:
         return self.domino_list.pop()
 
     def click(self, pos):
-        if self.storage_size:
+        if self.storage_size and self.player_pool:
             click_x = pos[0] - STORAGE_PANE_COORDS[0] - CELL_SIZE // 2
             click_y = pos[1] - STORAGE_PANE_COORDS[1] - CELL_SIZE // 2
             domino_rect = pg.Rect(0, 0, CELL_SIZE, 2 * CELL_SIZE)
             if domino_rect.collidepoint(click_x, click_y):
-                return self.domino_list.pop()
+                domino = self.domino_list.pop()
+                self.player_pool.add_domino(domino)
+
+
+class PlayerPool:
+
+    PANE_WIDTH = W - 2 * CELL_SIZE
+    PANE_HEIGHT = 3 * CELL_SIZE
+
+    TO_LEFT_BUTTON_COORDS = ((1, 2), (3, 1), (3, 3))
+    TO_RIGHT_BUTTON_COORDS = ((1, 1), (3, 2), (1, 3))
+
+    ARROW_COLOR = (255, 255, 255)
+
+    def __init__(self):
+        self.pool = []
+        self.chain = None
+        self.surface = pg.Surface((self.PANE_WIDTH, self.PANE_HEIGHT))
+        self.surface.set_colorkey(TRANSPARENT_COLOR)
+
+    def set_chain(self, chain):
+        self.chain = chain
+
+    def create_surface(self):
+        self.surface.fill(TRANSPARENT_COLOR)
+
+        if not self.pool:
+            return
+        interval = self.PANE_WIDTH // self.pool_size
+        if interval > (CELL_SIZE + 10):
+            interval = CELL_SIZE + 5
+
+        # Отрисовываем домино из пула
+        domino_block_width = interval * self.pool_size
+        block_x0, block_y0 = self.PANE_WIDTH // 2 - domino_block_width // 2, CELL_SIZE
+        for number, pool_element in enumerate(self.pool, 0):
+            domino = pool_element['domino']
+            domino_rect = pg.Rect(block_x0 + number * interval, block_y0, CELL_SIZE, 2 * CELL_SIZE)
+            pool_element['rect'] = domino_rect
+            self.surface.blit(domino.surface, domino_rect)
+
+            # Проверяем возможность добавления влево и рисуем стрелку
+            delta_x = delta_y = CELL_SIZE // 8
+            if domino.side1 == self.chain.left_side or domino.side2 == self.chain.left_side:
+                x0, y0 = domino_rect.x, domino.rect.y - CELL_SIZE // 2
+                arrow_coords = [(x0 + delta_x * x, y0 + delta_y * y) for x, y in self.TO_LEFT_BUTTON_COORDS]
+                pg.draw.polygon(self.surface, self.ARROW_COLOR, arrow_coords)
+                pool_element['append_to_left_rect'] = pg.Rect(x0, y0, CELL_SIZE // 2, CELL_SIZE // 2)
+            else:
+                pool_element['append_to_left_rect'] = None
+
+            # Проверяем возможность добавления вправо и рисуем стрелку
+            if domino.side1 == self.chain.right_side or domino.side2 == self.chain.right_side:
+                x0, y0 = domino_rect.x + CELL_SIZE // 2, domino.rect.y - CELL_SIZE // 2
+                arrow_coords = [(x0 + delta_x * x, y0 + delta_y * y) for x, y in self.TO_RIGHT_BUTTON_COORDS]
+                pg.draw.polygon(self.surface, self.ARROW_COLOR, arrow_coords)
+                pool_element['append_to_right_rect'] = pg.Rect(x0, y0, CELL_SIZE // 2, CELL_SIZE // 2)
+            else:
+                pool_element['append_to_right_rect'] = None
+
+    @property
+    def pool_size(self):
+        return len(self.pool)
+
+    def add_domino(self, domino):
+        domino.rotate(Domino.UP_ORIENTATION)
+        self.pool.append(
+            {
+                'rect': None,
+                'append_to_left_rect': None,
+                'append_to_right_rect': None,
+                'domino': domino
+            }
+        )
+
+    def click(self, pos):
+        pane_x, pane_y = get_player_pool_position(self)
+        click_x, click_y = pos[0] - pane_x, pos[1] - pane_y
+
+        pane_rect = self.surface.get_rect()
+        if not pane_rect.collidepoint(click_x, click_y):
+            return
+
+        for pool_element in self.pool:
+            left_arrow_rect = pool_element['append_to_left_rect']
+            right_arrow_rect = pool_element['append_to_right_rect']
+            domino = pool_element['domino']
+
+            if left_arrow_rect and left_arrow_rect.collidepoint(click_x, click_y):
+                if domino.is_double and domino.side1 == self.chain.left_side:
+                    self.chain.add_to_left(domino)
+                    break
+                if self.chain.left_side == domino.side1:
+                    domino.rotate(Domino.LEFT_ORIENTATION)
+                    self.chain.add_to_left(domino)
+                    break
+                if self.chain.right_side == domino.side2:
+                    domino.rotate(Domino.RIGHT_ORIENTATION)
+                    self.chain.add_to_left(domino)
+                    break
+
+            if right_arrow_rect and right_arrow_rect.collidepoint(click_x, click_y):
+                if domino.is_double and domino.side1 == self.chain.right_side:
+                    self.chain.add_to_right(domino)
+                    break
+                if self.chain.right_side == domino.side1:
+                    domino.rotate(Domino.RIGHT_ORIENTATION)
+                    self.chain.add_to_right(domino)
+                    break
+                if self.chain.right_side == domino.side2:
+                    domino.rotate(Domino.LEFT_ORIENTATION)
+                    self.chain.add_to_right(domino)
+                    break
+
+        else:
+            return
+
+        self.pool.remove(pool_element)

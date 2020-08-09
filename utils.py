@@ -1,5 +1,10 @@
 import pygame as pg
-from settings import W, H, BACKGROUND_COLORS, LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, STORAGE_PANE_COORDS
+from settings import W, H, CELL_SIZE,  BACKGROUND_COLORS, LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, \
+    STORAGE_PANE_COORDS
+
+
+def get_player_pool_position(player_pool):
+    return W // 2 - player_pool.PANE_WIDTH // 2, H - 4 * CELL_SIZE
 
 
 def draw_background(surface):
@@ -26,3 +31,9 @@ def draw_edge_pane(surface, edge_pane):
 def draw_storage_pane(surface, storage):
     storage.create_surface()
     surface.blit(storage.surface, STORAGE_PANE_COORDS)
+
+
+def draw_player_pool(surface, player_pool):
+    player_pool.create_surface()
+    x, y = get_player_pool_position(player_pool)
+    surface.blit(player_pool.surface, (x, y))
