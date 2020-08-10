@@ -16,7 +16,7 @@ def draw_background(surface):
 
 
 def draw_chain(surface, chain, scope):
-    if chain.width < scope.width:
+    if chain.width < W:
         scope.move_to_line(chain.center_line)
     chain.create_surface(scope)
     surface.blit(chain.surface, (0, 0))

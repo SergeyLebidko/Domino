@@ -14,34 +14,34 @@ def main():
     # Создаем объект для ограничения FPS
     clock = pg.time.Clock()
 
+    # Создаем пустую цепочку
+    chain = Chain()
+
+    # Создаем объект для представления области просмотра
+    scope = Scope(chain)
+
     # Создаем пул домино игрока
-    player_pool = PlayerPool()
+    # chain - цепочка, в которую будут добавляться домино из пула
+    # scope - область просмотра для быстрого отображения края цепочки при ходе игрока
+    player_pool = PlayerPool(chain, scope)
 
     # Создаем хранилище
-    storage = Storage()
+    # player_pool - пул домино игрока, в которые будут передаваться домино при клике на значке хранилища
+    storage = Storage(player_pool)
 
-    # Добавляем домино в пул игроку
+    # Заполняем пул игрока случайными домино
     for _ in range(7):
         player_pool.add_domino(storage.take_domino())
 
-    # Создаем цепочку
-    start_domino = storage.take_domino()
-    if start_domino.is_double:
-        start_domino.rotate(Domino.UP_ORIENTATION)
+    # Выбираем и добавляем первое домино в цепочку
+    first_domino = storage.take_domino()
+    if first_domino.is_double:
+        first_domino.rotate(Domino.UP_ORIENTATION)
     else:
-        start_domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
-    chain = Chain(start_domino)
+        first_domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
+    chain.add_first_domino(first_domino)
 
-    # Создаем объект для отображения выбранной части цепочки и центрируем его по цепочке
-    scope = Scope(- W // 2, W // 2)
-    scope.move_to_line(chain.center_line)
-
-    # Связываем пул, цепочку, хранилище и объект для отображения цепочки
-    player_pool.set_chain(chain)
-    player_pool.set_scope(scope)
-    storage.set_player_pool(player_pool)
-
-    # Создаем объект для отображения крайних домино в цепочке, если они в данный момент не видимы
+    # Создаем объект для отображения крайних домино в цепочке
     edge_pane = EdgePane(chain, scope)
 
     while True:
@@ -53,33 +53,25 @@ def main():
 
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_LEFT:
-                    scope.move_to_left(chain)
+                    scope.move_to_left()
                 if event.key == pg.K_RIGHT:
-                    scope.move_to_right(chain)
+                    scope.move_to_right()
 
             if event.type == pg.MOUSEBUTTONDOWN:
                 if event.button == pg.BUTTON_LEFT:
-                    storage.click(event.pos)
                     edge_pane.click(event.pos)
-                    player_pool.click(event.pos)
+                    storage_action = storage.click(event.pos)
+                    player_pool_action = player_pool.click(event.pos)
                 if event.button == pg.BUTTON_WHEELDOWN:
-                    scope.step_left(chain)
+                    scope.step_left()
                 if event.button == pg.BUTTON_WHEELUP:
-                    scope.step_right(chain)
+                    scope.step_right()
 
         # Блок функций отрисовки
         draw_background(sc)
-
-        # Отрисовка цепочки
         draw_chain(sc, chain, scope)
-
-        # Отрисовка панелей с крайними домино
         draw_edge_pane(sc, edge_pane)
-
-        # Отрисовка панели с хранилищем
         draw_storage_pane(sc, storage)
-
-        # Отрисовка пуга игрока
         draw_player_pool(sc, player_pool)
 
         pg.display.update()

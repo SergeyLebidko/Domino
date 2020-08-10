@@ -36,3 +36,6 @@ RIGHT_EDGE_PANE_COORDS = (W - (2 * CELL_SIZE + CELL_SIZE // 2), H // 2 - int(3.5
 
 # Полжение панели с "хранилищем"
 STORAGE_PANE_COORDS = (W - 3 * CELL_SIZE, CELL_SIZE // 2)
+
+# Интервал между домино в пулах
+POOL_DOMINO_INTERVAL = CELL_SIZE + 5

@@ -2,7 +2,7 @@ import random
 import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
-    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS
+    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS, POOL_DOMINO_INTERVAL
 from utils import get_player_pool_position
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
@@ -57,51 +57,54 @@ class EdgePane:
         right_domino_rect.y = RIGHT_EDGE_PANE_COORDS[1] + right_domino_rect.y
 
         if left_domino_rect.collidepoint(pos):
-            self.scope.move_to_left(self.chain)
+            self.scope.move_to_left()
         if right_domino_rect.collidepoint(pos):
-            self.scope.move_to_right(self.chain)
+            self.scope.move_to_right()
 
 
 class Scope:
+
     SCROLL_STEP = 40
     SCROLL_LIMIT = 3 * CELL_SIZE
 
-    def __init__(self, left_line, right_line):
-        self.left_line, self.right_line = left_line, right_line
-        self.width = right_line - left_line
+    def __init__(self, chain):
+        self.chain = chain
+        self.left_line, self.right_line = None, None
+        self.move_to_line(chain.center_line)
 
-    def step_left(self, chain):
-        left_limit = chain.left_line - self.SCROLL_LIMIT
+    def step_left(self):
+        left_limit = self.chain.left_line - self.SCROLL_LIMIT
         if self.left_line >= left_limit:
             self.left_line -= self.SCROLL_STEP
             self.right_line -= self.SCROLL_STEP
         if self.left_line < left_limit:
-            self.move_to_left(chain)
+            self.move_to_left()
 
-    def step_right(self, chain):
-        right_limit = chain.right_line + self.SCROLL_LIMIT
+    def step_right(self):
+        right_limit = self.chain.right_line + self.SCROLL_LIMIT
         if self.right_line <= right_limit:
             self.left_line += self.SCROLL_STEP
             self.right_line += self.SCROLL_STEP
         if self.right_line > right_limit:
-            self.move_to_right(chain)
+            self.move_to_right()
 
-    def move_to_left(self, chain):
-        self.left_line = chain.left_line - self.SCROLL_LIMIT
-        self.right_line = self.left_line + self.width
+    def move_to_left(self):
+        self.left_line = self.chain.left_line - self.SCROLL_LIMIT
+        self.right_line = self.left_line + W
 
-    def move_to_right(self, chain):
-        self.right_line = chain.right_line + self.SCROLL_LIMIT
-        self.left_line = self.right_line - self.width
+    def move_to_right(self):
+        self.right_line = self.chain.right_line + self.SCROLL_LIMIT
+        self.left_line = self.right_line - W
 
     def move_to_line(self, line):
-        self.left_line, self.right_line = line - self.width // 2, line + self.width // 2
+        self.left_line, self.right_line = line - W // 2, line + W // 2
 
     def rect_in_scope(self, rect):
         return (self.left_line <= rect.left <= self.right_line) or (self.left_line <= rect.right <= self.right_line)
 
 
 class Domino:
+
     RIGHT_ORIENTATION = 1
     DOWN_ORIENTATION = 2
     LEFT_ORIENTATION = 3
@@ -242,12 +245,15 @@ class Domino:
 
 class Chain:
 
-    def __init__(self, domino):
+    def __init__(self):
         self.surface = pg.Surface((W, H))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
 
         self.domino_list = []
+        self.left_line, self.right_line = None, None
+        self.left_side, self.right_side = None, None
 
+    def add_first_domino(self, domino):
         domino_rect = domino.rect
         self.domino_list.append(ChainElement(domino_rect, domino))
         self.left_line, self.right_line = domino_rect.left, domino_rect.right
@@ -261,6 +267,10 @@ class Chain:
                 self.left_side, self.right_side = domino.side2, domino.side1
 
     def add_to_right(self, domino):
+        if not self.domino_list:
+            self.add_first_domino(domino)
+            return
+
         # Проверка возможности добавления домино в правую часть цепочки
         ex_flags = [
             domino.is_double and domino.side1 != self.right_side,
@@ -286,6 +296,10 @@ class Chain:
             self.right_side = domino.side1
 
     def add_to_left(self, domino):
+        if not self.domino_list:
+            self.add_first_domino(domino)
+            return
+
         # Проверка возможности добавления домино в левую часть цепочки
         ex_flags = [
             domino.is_double and domino.side1 != self.left_side,
@@ -322,6 +336,8 @@ class Chain:
 
     @property
     def center_line(self):
+        if not self.domino_list:
+            return 0
         return (self.left_line + self.right_line) // 2
 
     @property
@@ -342,16 +358,14 @@ class Storage:
     CIRCLE_COLOR = (50, 150, 0)
     FONT_COLOR = (255, 255, 255)
 
-    def __init__(self):
-        self.player_pool = None
+    def __init__(self, player_pool):
+        self.player_pool = player_pool
         self.domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
         random.shuffle(self.domino_list)
         self.surface = pg.Surface((CELL_SIZE * 2, CELL_SIZE * 3))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
         self.font = pg.font.Font(None, 24)
-
-    def set_player_pool(self, player_pool):
-        self.player_pool = player_pool
+        self.block = False
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
@@ -393,13 +407,18 @@ class Storage:
         return self.domino_list.pop()
 
     def click(self, pos):
-        if self.storage_size and self.player_pool:
-            click_x = pos[0] - STORAGE_PANE_COORDS[0] - CELL_SIZE // 2
-            click_y = pos[1] - STORAGE_PANE_COORDS[1] - CELL_SIZE // 2
-            domino_rect = pg.Rect(0, 0, CELL_SIZE, 2 * CELL_SIZE)
-            if domino_rect.collidepoint(click_x, click_y):
-                domino = self.domino_list.pop()
-                self.player_pool.add_domino(domino)
+        if not self.storage_size or self.player_pool.available_moves or self.block:
+            return False
+
+        click_x = pos[0] - STORAGE_PANE_COORDS[0] - CELL_SIZE // 2
+        click_y = pos[1] - STORAGE_PANE_COORDS[1] - CELL_SIZE // 2
+        domino_rect = pg.Rect(0, 0, CELL_SIZE, 2 * CELL_SIZE)
+        if domino_rect.collidepoint(click_x, click_y):
+            domino = self.domino_list.pop()
+            self.player_pool.add_domino(domino)
+            return True
+
+        return False
 
 
 class PlayerPool:
@@ -412,34 +431,24 @@ class PlayerPool:
 
     ARROW_COLOR = (255, 255, 255)
 
-    def __init__(self):
+    def __init__(self, chain, scope):
         self.pool = []
-        self.chain = None
-        self.scope = None
+        self.chain, self.scope = chain, scope
         self.surface = pg.Surface((self.PANE_WIDTH, self.PANE_HEIGHT))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
-
-    def set_chain(self, chain):
-        self.chain = chain
-
-    def set_scope(self, scope):
-        self.scope = scope
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
 
         if not self.pool:
             return
-        interval = self.PANE_WIDTH // self.pool_size
-        if interval > (CELL_SIZE + 10):
-            interval = CELL_SIZE + 5
 
         # Отрисовываем домино из пула
-        domino_block_width = interval * self.pool_size
+        domino_block_width = POOL_DOMINO_INTERVAL * self.pool_size
         block_x0, block_y0 = self.PANE_WIDTH // 2 - domino_block_width // 2, CELL_SIZE
         for number, pool_element in enumerate(self.pool, 0):
             domino = pool_element['domino']
-            domino_rect = pg.Rect(block_x0 + number * interval, block_y0, CELL_SIZE, 2 * CELL_SIZE)
+            domino_rect = pg.Rect(block_x0 + number * POOL_DOMINO_INTERVAL, block_y0, CELL_SIZE, 2 * CELL_SIZE)
             pool_element['rect'] = domino_rect
             self.surface.blit(domino.surface, domino_rect)
 
@@ -466,6 +475,13 @@ class PlayerPool:
     def pool_size(self):
         return len(self.pool)
 
+    @property
+    def available_moves(self):
+        for pool_element in self.pool:
+            if pool_element['append_to_left_rect'] or pool_element['append_to_right_rect']:
+                return True
+        return False
+
     def add_domino(self, domino):
         domino.rotate(Domino.UP_ORIENTATION)
         self.pool.append(
@@ -490,39 +506,48 @@ class PlayerPool:
             right_arrow_rect = pool_element['append_to_right_rect']
             domino = pool_element['domino']
 
+            # Обрабатываем добавление домино в левую часть цепочки
             if left_arrow_rect and left_arrow_rect.collidepoint(click_x, click_y):
                 if domino.is_double:
                     self.chain.add_to_left(domino)
-                    self.scope.move_to_left(self.chain)
+                    self.scope.move_to_left()
                     break
                 if self.chain.left_side == domino.side1:
                     domino.rotate(Domino.LEFT_ORIENTATION)
                     self.chain.add_to_left(domino)
-                    self.scope.move_to_left(self.chain)
+                    self.scope.move_to_left()
                     break
                 if self.chain.left_side == domino.side2:
                     domino.rotate(Domino.RIGHT_ORIENTATION)
                     self.chain.add_to_left(domino)
-                    self.scope.move_to_left(self.chain)
+                    self.scope.move_to_left()
                     break
 
+            # Обрабатываем добавление домино в правую часть цепочки
             if right_arrow_rect and right_arrow_rect.collidepoint(click_x, click_y):
                 if domino.is_double:
                     self.chain.add_to_right(domino)
-                    self.scope.move_to_right(self.chain)
+                    self.scope.move_to_right()
                     break
                 if self.chain.right_side == domino.side1:
                     domino.rotate(Domino.RIGHT_ORIENTATION)
                     self.chain.add_to_right(domino)
-                    self.scope.move_to_right(self.chain)
+                    self.scope.move_to_right()
                     break
                 if self.chain.right_side == domino.side2:
                     domino.rotate(Domino.LEFT_ORIENTATION)
                     self.chain.add_to_right(domino)
-                    self.scope.move_to_right(self.chain)
+                    self.scope.move_to_right()
                     break
 
         else:
-            return
+            return False
 
         self.pool.remove(pool_element)
+        return True
+
+
+class CmpPool:
+
+    def __init__(self):
+        self.pool = []
