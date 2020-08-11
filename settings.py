@@ -28,6 +28,10 @@ DOMINO_DOT_COLOR = (0, 0, 0)
 # Цвет для "прозрачных" заливок
 TRANSPARENT_COLOR = (255, 0, 0)
 
+# Цвета для обратной стороны домино
+DOMINO_BACKSIDE_COLOR_1 = (224, 207, 177)
+DOMINO_BACKSIDE_COLOR_2 = (255, 229, 180)
+
 # Положение панели с крайним левым домино в цепочке
 LEFT_EDGE_PANE_COORDS = (CELL_SIZE // 2, H // 2 - int(3.5 * CELL_SIZE))
 

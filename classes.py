@@ -3,7 +3,7 @@ import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
     LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS, POOL_DOMINO_INTERVAL
-from utils import get_player_pool_position
+from utils import get_player_pool_position, get_domino_backside
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
@@ -372,24 +372,8 @@ class Storage:
         if not self.storage_size:
             return
 
-        # Рисуем внутреннюю область
-        domino_x, domino_y = CELL_SIZE // 2, CELL_SIZE // 2
-        domino_width, domino_height = CELL_SIZE, CELL_SIZE * 2
-        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_1, (domino_x, domino_y, domino_width, domino_height))
-
-        inner_x, inner_y = domino_x + CELL_SIZE // 6, domino_y + CELL_SIZE // 6
-        inner_w, inner_h = 4 * CELL_SIZE // 6, 4 * CELL_SIZE // 6
-        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_2, (inner_x, inner_y, inner_w, inner_h))
-
-        inner_y = domino_y + 7 * CELL_SIZE // 6
-        pg.draw.rect(self.surface, self.BACKGROUND_COLOR_2, (inner_x, inner_y, inner_w, inner_h))
-
-        line_x1, line_y1 = domino_x + CELL_SIZE // 6, domino_y + CELL_SIZE
-        line_x2, line_y2 = domino_x + 5 * CELL_SIZE // 6, domino_y + CELL_SIZE
-        pg.draw.line(self.surface, self.BACKGROUND_COLOR_2, (line_x1, line_y1), (line_x2, line_y2), 3)
-
-        # Рисуем границу
-        pg.draw.rect(self.surface, DOMINO_BORDER_COLOR, (CELL_SIZE // 2, CELL_SIZE // 2, CELL_SIZE, 2 * CELL_SIZE), 1)
+        backside_surface = get_domino_backside()
+        self.surface.blit(backside_surface, (CELL_SIZE // 2, CELL_SIZE // 2))
 
         # Рисуем область вывода количества домино в хранилище
         pg.draw.circle(self.surface, self.CIRCLE_COLOR, (3 * CELL_SIZE // 2, CELL_SIZE // 2), CELL_SIZE // 3)

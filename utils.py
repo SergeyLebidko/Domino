@@ -1,10 +1,32 @@
 import pygame as pg
 from settings import W, H, CELL_SIZE,  BACKGROUND_COLORS, LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, \
-    STORAGE_PANE_COORDS
+    STORAGE_PANE_COORDS, DOMINO_BACKSIDE_COLOR_1, DOMINO_BACKSIDE_COLOR_2, DOMINO_BORDER_COLOR
 
 
 def get_player_pool_position(player_pool):
     return W // 2 - player_pool.PANE_WIDTH // 2, H - 4 * CELL_SIZE
+
+
+def get_domino_backside():
+    surface = pg.Surface((CELL_SIZE, 2 * CELL_SIZE))
+
+    # Заполняем фон
+    surface.fill(DOMINO_BACKSIDE_COLOR_1)
+
+    # Рисуем границу
+    pg.draw.rect(surface, DOMINO_BORDER_COLOR, (0, 0, CELL_SIZE, CELL_SIZE * 2), 1)
+
+    # Получем опорные величины
+    delta_x = delta_y = CELL_SIZE // 6
+
+    # Рисуем верхний и нижний квадраты
+    pg.draw.rect(surface, DOMINO_BACKSIDE_COLOR_2, (delta_x, delta_y, 4 * delta_x, 4 * delta_y))
+    pg.draw.rect(surface, DOMINO_BACKSIDE_COLOR_2, (delta_x, 7 * delta_y, 4 * delta_x, 4 * delta_y))
+
+    # Рисуем разделительную линию
+    pg.draw.line(surface, DOMINO_BACKSIDE_COLOR_2, (delta_x, 6 * delta_y), (5 * delta_x, 6 * delta_y), 3)
+
+    return surface
 
 
 def draw_background(surface):
