@@ -365,7 +365,6 @@ class Storage:
         self.surface = pg.Surface((CELL_SIZE * 2, CELL_SIZE * 3))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
         self.font = pg.font.Font(None, 24)
-        self.block = False
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
@@ -391,7 +390,7 @@ class Storage:
         return self.domino_list.pop()
 
     def click(self, pos):
-        if not self.storage_size or self.player_pool.available_moves or self.block:
+        if not self.storage_size or self.player_pool.is_available_moves:
             return False
 
         click_x = pos[0] - STORAGE_PANE_COORDS[0] - CELL_SIZE // 2
@@ -436,9 +435,12 @@ class PlayerPool:
             pool_element['rect'] = domino_rect
             self.surface.blit(domino.surface, domino_rect)
 
+            # Проверяем доступность ходов для домино
+            available_for_left, available_for_right = self.check_available_for_domino(domino)
+
             # Проверяем возможность добавления влево и рисуем стрелку
             delta_x = delta_y = CELL_SIZE // 8
-            if domino.side1 == self.chain.left_side or domino.side2 == self.chain.left_side:
+            if available_for_left:
                 x0, y0 = domino_rect.x, domino.rect.y - CELL_SIZE // 2
                 arrow_coords = [(x0 + delta_x * x, y0 + delta_y * y) for x, y in self.TO_LEFT_BUTTON_COORDS]
                 pg.draw.polygon(self.surface, self.ARROW_COLOR, arrow_coords)
@@ -447,7 +449,7 @@ class PlayerPool:
                 pool_element['append_to_left_rect'] = None
 
             # Проверяем возможность добавления вправо и рисуем стрелку
-            if domino.side1 == self.chain.right_side or domino.side2 == self.chain.right_side:
+            if available_for_right:
                 x0, y0 = domino_rect.x + CELL_SIZE // 2, domino.rect.y - CELL_SIZE // 2
                 arrow_coords = [(x0 + delta_x * x, y0 + delta_y * y) for x, y in self.TO_RIGHT_BUTTON_COORDS]
                 pg.draw.polygon(self.surface, self.ARROW_COLOR, arrow_coords)
@@ -460,11 +462,18 @@ class PlayerPool:
         return len(self.pool)
 
     @property
-    def available_moves(self):
+    def is_available_moves(self):
         for pool_element in self.pool:
-            if pool_element['append_to_left_rect'] or pool_element['append_to_right_rect']:
+            domino = pool_element['domino']
+            available_for_left, available_for_right = self.check_available_for_domino(domino)
+            if available_for_left or available_for_right:
                 return True
         return False
+
+    def check_available_for_domino(self, domino):
+        available_for_left = domino.side1 == self.chain.left_side or domino.side2 == self.chain.left_side
+        available_for_right = domino.side1 == self.chain.right_side or domino.side2 == self.chain.right_side
+        return available_for_left, available_for_right
 
     def add_domino(self, domino):
         domino.rotate(Domino.UP_ORIENTATION)
@@ -483,7 +492,7 @@ class PlayerPool:
 
         pane_rect = self.surface.get_rect()
         if not pane_rect.collidepoint(click_x, click_y):
-            return
+            return False
 
         for pool_element in self.pool:
             left_arrow_rect = pool_element['append_to_left_rect']
@@ -523,7 +532,6 @@ class PlayerPool:
                     self.chain.add_to_right(domino)
                     self.scope.move_to_right()
                     break
-
         else:
             return False
 
@@ -559,3 +567,13 @@ class CmpPool:
     @property
     def pool_size(self):
         return len(self.pool)
+
+
+class Ai:
+
+    def __init__(self):
+        self.move_number = 0
+
+    def next(self):
+        self.move_number += 1
+        print('Ход компьютера ', self.move_number)

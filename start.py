@@ -1,8 +1,8 @@
 import random
 import pygame as pg
-from settings import W, H, WINDOW_TITLE, FPS
+from settings import W, H, WINDOW_TITLE, FPS, PLAYER_MOVE_MODE, CMP_MOVE_MODE, END_GAME_MODE
 from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool, draw_cmp_pool
-from classes import Domino, Chain, Scope, EdgePane, Storage, PlayerPool, CmpPool
+from classes import Domino, Chain, Scope, EdgePane, Storage, PlayerPool, CmpPool, Ai
 
 
 def main():
@@ -49,6 +49,14 @@ def main():
     # Создаем объект для отображения крайних домино в цепочке
     edge_pane = EdgePane(chain, scope)
 
+    # Создаем объект ИИ
+    ai = Ai()
+
+    # Выбираем первый режим игры - ход игрока
+    game_mode = PLAYER_MOVE_MODE
+
+    storage_action = player_pool_action = False
+
     while True:
         events = pg.event.get()
         for event in events:
@@ -56,21 +64,33 @@ def main():
                 pg.quit()
                 exit()
 
-            if event.type == pg.KEYDOWN:
-                if event.key == pg.K_LEFT:
-                    scope.move_to_left()
-                if event.key == pg.K_RIGHT:
-                    scope.move_to_right()
+            # Если сейчас ход компьютера, то вызываем метод объекта ИИ
+            if game_mode == CMP_MOVE_MODE:
+                ai.next()
+                storage_action = player_pool_action = False
+                game_mode = PLAYER_MOVE_MODE
 
-            if event.type == pg.MOUSEBUTTONDOWN:
-                if event.button == pg.BUTTON_LEFT:
-                    edge_pane.click(event.pos)
-                    storage_action = storage.click(event.pos)
-                    player_pool_action = player_pool.click(event.pos)
-                if event.button == pg.BUTTON_WHEELDOWN:
-                    scope.step_left()
-                if event.button == pg.BUTTON_WHEELUP:
-                    scope.step_right()
+            # Если сейчас ход игрока, то просматриваем события мыши и клавиатуры
+            if game_mode == PLAYER_MOVE_MODE:
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_LEFT:
+                        scope.move_to_left()
+                    if event.key == pg.K_RIGHT:
+                        scope.move_to_right()
+
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    if event.button == pg.BUTTON_LEFT:
+                        edge_pane.click(event.pos)
+                        storage_action = storage.click(event.pos)
+                        player_pool_action = player_pool.click(event.pos)
+                    if event.button == pg.BUTTON_WHEELDOWN:
+                        scope.step_left()
+                    if event.button == pg.BUTTON_WHEELUP:
+                        scope.step_right()
+
+                # Если игрок совершил действие (взял домино и/или положил его в цепочку), то передаем ход ИИ
+                if player_pool_action or (storage_action and not player_pool.is_available_moves):
+                    game_mode = CMP_MOVE_MODE
 
         # Блок функций отрисовки
         draw_background(sc)
