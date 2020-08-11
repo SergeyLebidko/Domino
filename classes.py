@@ -533,5 +533,29 @@ class PlayerPool:
 
 class CmpPool:
 
+    PANE_WIDTH = W - 2 * CELL_SIZE
+    PANE_HEIGHT = 3 * CELL_SIZE
+
     def __init__(self):
         self.pool = []
+        self.surface = pg.Surface((self.PANE_WIDTH, self.PANE_HEIGHT))
+        self.surface.set_colorkey(TRANSPARENT_COLOR)
+
+    def create_surface(self):
+        self.surface.fill(TRANSPARENT_COLOR)
+
+        if not self.pool:
+            return
+
+        domino_block_width = POOL_DOMINO_INTERVAL * self.pool_size
+        block_x0, block_y0 = self.PANE_WIDTH // 2 - domino_block_width // 2, CELL_SIZE
+        domino_backside = get_domino_backside()
+        for index in range(self.pool_size):
+            self.surface.blit(domino_backside, (block_x0 + index * POOL_DOMINO_INTERVAL, block_y0))
+
+    def add_domino(self, domino):
+        self.pool.append(domino)
+
+    @property
+    def pool_size(self):
+        return len(self.pool)

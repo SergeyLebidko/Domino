@@ -7,6 +7,10 @@ def get_player_pool_position(player_pool):
     return W // 2 - player_pool.PANE_WIDTH // 2, H - 4 * CELL_SIZE
 
 
+def get_cmp_pool_position(cmp_pool):
+    return W // 2 - cmp_pool.PANE_WIDTH // 2, CELL_SIZE
+
+
 def get_domino_backside():
     surface = pg.Surface((CELL_SIZE, 2 * CELL_SIZE))
 
@@ -59,3 +63,9 @@ def draw_player_pool(surface, player_pool):
     player_pool.create_surface()
     x, y = get_player_pool_position(player_pool)
     surface.blit(player_pool.surface, (x, y))
+
+
+def draw_cmp_pool(surface, cmp_pool):
+    cmp_pool.create_surface()
+    x, y = get_cmp_pool_position(cmp_pool)
+    surface.blit(cmp_pool.surface, (x, y))

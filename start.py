@@ -1,8 +1,8 @@
 import random
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS
-from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool
-from classes import Domino, Chain, Scope, EdgePane, Storage, PlayerPool
+from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool, draw_cmp_pool
+from classes import Domino, Chain, Scope, EdgePane, Storage, PlayerPool, CmpPool
 
 
 def main():
@@ -41,6 +41,11 @@ def main():
         first_domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
     chain.add_first_domino(first_domino)
 
+    # Создаем и заполняем пул компьютера
+    cmp_pool = CmpPool()
+    for _ in range(7):
+        cmp_pool.add_domino(storage.take_domino())
+
     # Создаем объект для отображения крайних домино в цепочке
     edge_pane = EdgePane(chain, scope)
 
@@ -73,6 +78,7 @@ def main():
         draw_edge_pane(sc, edge_pane)
         draw_storage_pane(sc, storage)
         draw_player_pool(sc, player_pool)
+        draw_cmp_pool(sc, cmp_pool)
 
         pg.display.update()
 
