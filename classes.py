@@ -603,11 +603,6 @@ class ResultPane:
         else:
             msg = 'Ничья'
 
-        font_result = pg.font.Font(None, 36)
-        font_resume = pg.font.Font(None, 24)
-        result_surface = font_result.render(msg, 1, self.FONT_COLOR)
-        resume_surface = font_resume.render('[Enter] - Играть еще раз. [ESC] - Выход...', 1, self.FONT_COLOR)
-
         delta = CELL_SIZE // 4
         x1, y1 = W // 2 - delta * 15, H // 2 - delta * 5
         x2, y2 = W // 2 + delta * 15, H // 2 + delta * 5
@@ -620,12 +615,16 @@ class ResultPane:
                 )
         pg.draw.rect(self.surface, DOMINO_BORDER_COLOR, (x1, y1, x2 - x1, y2 - y1), 1)
 
+        font_result = pg.font.Font(None, 36)
+        font_resume = pg.font.Font(None, 24)
+        result_surface = font_result.render(msg, 1, self.FONT_COLOR)
+        resume_surface = font_resume.render('[Enter] - Играть еще раз. [ESC] - Выход...', 1, self.FONT_COLOR)
+
         result_rect = result_surface.get_rect()
         self.surface.blit(
             result_surface,
             (W // 2 - result_rect.width // 2, H // 2 - result_rect.height - 2)
         )
-
         resume_rect = resume_surface.get_rect()
         self.surface.blit(
             resume_surface,

@@ -63,8 +63,8 @@ def main():
         next_mode = game_mode = PLAYER_MOVE_MODE
 
         # Основной цикл игры: в нем происходит отслеживание событий и чередование ходов
-        play_flag = True
-        while play_flag:
+        resume_game = True
+        while resume_game:
 
             # Проверяем событие закрытия окна
             events = pg.event.get()
@@ -107,7 +107,7 @@ def main():
                         if event.key == pg.K_ESCAPE:
                             quit_game()
                         if event.key == pg.K_KP_ENTER or event.key == 13:
-                            play_flag = False
+                            resume_game = False
                             break
 
             # Независимо от текущего режима обрабатываем перемещение по цепочке
