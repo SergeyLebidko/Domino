@@ -2,7 +2,8 @@ import random
 import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
-    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS, POOL_DOMINO_INTERVAL
+    LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS, POOL_DOMINO_INTERVAL, \
+    PLAYER_WIN, CMP_WIN, RESULT_BACKGROUND_COLORS
 from utils import get_player_pool_position, get_domino_backside, is_available_moves, check_available_for_domino
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
@@ -469,6 +470,10 @@ class PlayerPool:
     def is_empty(self):
         return len(self.pool) == 0
 
+    @property
+    def domino_list(self):
+        return [pool_element['domino'] for pool_element in self.pool]
+
     def add_domino(self, domino):
         domino.rotate(Domino.UP_ORIENTATION)
         self.pool.append(
@@ -538,8 +543,9 @@ class CmpPool:
     PANE_WIDTH = W - 2 * CELL_SIZE
     PANE_HEIGHT = 3 * CELL_SIZE
 
-    def __init__(self):
+    def __init__(self, chain):
         self.pool = []
+        self.chain = chain
         self.surface = pg.Surface((self.PANE_WIDTH, self.PANE_HEIGHT))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
 
@@ -565,6 +571,66 @@ class CmpPool:
     @property
     def is_empty(self):
         return len(self.pool) == 0
+
+    @property
+    def domino_list(self):
+        return self.pool
+
+
+class ResultPane:
+
+    FONT_COLOR = (20, 20, 20)
+
+    def __init__(self):
+        self.surface = pg.Surface((W, H))
+        self.surface.set_colorkey(TRANSPARENT_COLOR)
+        self.game_result = None
+        self.create_surface()
+
+    def set_game_result(self, game_result):
+        self.game_result = game_result
+        self.create_surface()
+
+    def create_surface(self):
+        self.surface.fill(TRANSPARENT_COLOR)
+        if not self.game_result:
+            return
+
+        if self.game_result == PLAYER_WIN:
+            msg = 'Вы победили!'
+        elif self.game_result == CMP_WIN:
+            msg = 'Вы проиграли...'
+        else:
+            msg = 'Ничья'
+
+        font_result = pg.font.Font(None, 36)
+        font_resume = pg.font.Font(None, 24)
+        result_surface = font_result.render(msg, 1, self.FONT_COLOR)
+        resume_surface = font_resume.render('[Enter] - Играть еще раз. [ESC] - Выход...', 1, self.FONT_COLOR)
+
+        delta = CELL_SIZE // 4
+        x1, y1 = W // 2 - delta * 15, H // 2 - delta * 5
+        x2, y2 = W // 2 + delta * 15, H // 2 + delta * 5
+        for x in range(x1, x2, delta):
+            for y in range(y1, y2, delta):
+                pg.draw.rect(
+                    self.surface,
+                    RESULT_BACKGROUND_COLORS[(x // delta + y // delta) % 2],
+                    (x, y, delta, delta)
+                )
+        pg.draw.rect(self.surface, DOMINO_BORDER_COLOR, (x1, y1, x2 - x1, y2 - y1), 1)
+
+        result_rect = result_surface.get_rect()
+        self.surface.blit(
+            result_surface,
+            (W // 2 - result_rect.width // 2, H // 2 - result_rect.height - 2)
+        )
+
+        resume_rect = resume_surface.get_rect()
+        self.surface.blit(
+            resume_surface,
+            (W // 2 - resume_rect.width // 2, H // 2 + result_rect.height)
+        )
 
 
 class Ai:

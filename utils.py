@@ -59,8 +59,7 @@ def check_end_game(player_pool, cmp_pool, storage):
 def is_available_moves(pool):
     """Функция возвращает True, если из переданного пула возможен ход"""
 
-    for pool_element in pool.pool:
-        domino = pool_element['domino']
+    for domino in pool.domino_list:
         available_for_left, available_for_right = check_available_for_domino(domino, pool.chain)
         if available_for_left or available_for_right:
             return True
@@ -123,3 +122,19 @@ def draw_cmp_pool(surface, cmp_pool):
     cmp_pool.create_surface()
     x, y = get_cmp_pool_position(cmp_pool)
     surface.blit(cmp_pool.surface, (x, y))
+
+
+def draw_game_result(surface, game_result):
+    surface.blit(game_result.surface, (0, 0))
+
+
+def is_quit_event(events):
+    for event in events:
+        if event.type == pg.QUIT:
+            return True
+    return False
+
+
+def quit_game():
+    pg.quit()
+    exit()
