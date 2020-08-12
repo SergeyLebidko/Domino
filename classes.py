@@ -3,7 +3,7 @@ import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
     LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS, POOL_DOMINO_INTERVAL
-from utils import get_player_pool_position, get_domino_backside
+from utils import get_player_pool_position, get_domino_backside, is_available_moves, check_available_for_domino
 
 ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
 
@@ -386,11 +386,15 @@ class Storage:
     def storage_size(self):
         return len(self.domino_list)
 
+    @property
+    def is_empty(self):
+        return len(self.domino_list) == 0
+
     def take_domino(self):
         return self.domino_list.pop()
 
     def click(self, pos):
-        if not self.storage_size or self.player_pool.is_available_moves:
+        if not self.storage_size or is_available_moves(self.player_pool):
             return False
 
         click_x = pos[0] - STORAGE_PANE_COORDS[0] - CELL_SIZE // 2
@@ -436,7 +440,7 @@ class PlayerPool:
             self.surface.blit(domino.surface, domino_rect)
 
             # Проверяем доступность ходов для домино
-            available_for_left, available_for_right = self.check_available_for_domino(domino)
+            available_for_left, available_for_right = check_available_for_domino(domino, self.chain)
 
             # Проверяем возможность добавления влево и рисуем стрелку
             delta_x = delta_y = CELL_SIZE // 8
@@ -462,18 +466,8 @@ class PlayerPool:
         return len(self.pool)
 
     @property
-    def is_available_moves(self):
-        for pool_element in self.pool:
-            domino = pool_element['domino']
-            available_for_left, available_for_right = self.check_available_for_domino(domino)
-            if available_for_left or available_for_right:
-                return True
-        return False
-
-    def check_available_for_domino(self, domino):
-        available_for_left = domino.side1 == self.chain.left_side or domino.side2 == self.chain.left_side
-        available_for_right = domino.side1 == self.chain.right_side or domino.side2 == self.chain.right_side
-        return available_for_left, available_for_right
+    def is_empty(self):
+        return len(self.pool) == 0
 
     def add_domino(self, domino):
         domino.rotate(Domino.UP_ORIENTATION)
@@ -567,6 +561,10 @@ class CmpPool:
     @property
     def pool_size(self):
         return len(self.pool)
+
+    @property
+    def is_empty(self):
+        return len(self.pool) == 0
 
 
 class Ai:

@@ -1,7 +1,8 @@
 import random
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS, PLAYER_MOVE_MODE, CMP_MOVE_MODE, END_GAME_MODE
-from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool, draw_cmp_pool
+from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool, draw_cmp_pool, \
+    is_available_moves
 from classes import Domino, Chain, Scope, EdgePane, Storage, PlayerPool, CmpPool, Ai
 
 
@@ -52,23 +53,22 @@ def main():
     # Создаем объект ИИ
     ai = Ai()
 
-    # Выбираем первый режим игры - ход игрока
+    # Выбираем первый режим работы - ход игрока
     game_mode = PLAYER_MOVE_MODE
 
-    storage_action = player_pool_action = False
-
     while True:
+        # Если сейчас ход компьютера, то вызываем метод объекта ИИ
+        if game_mode == CMP_MOVE_MODE:
+            ai.next()
+            game_mode = PLAYER_MOVE_MODE
+
         events = pg.event.get()
         for event in events:
+
+            # Событие закрытия окна должно отслеживаться в любом случае
             if event.type == pg.QUIT:
                 pg.quit()
                 exit()
-
-            # Если сейчас ход компьютера, то вызываем метод объекта ИИ
-            if game_mode == CMP_MOVE_MODE:
-                ai.next()
-                storage_action = player_pool_action = False
-                game_mode = PLAYER_MOVE_MODE
 
             # Если сейчас ход игрока, то просматриваем события мыши и клавиатуры
             if game_mode == PLAYER_MOVE_MODE:
@@ -78,6 +78,7 @@ def main():
                     if event.key == pg.K_RIGHT:
                         scope.move_to_right()
 
+                storage_action = player_pool_action = False
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if event.button == pg.BUTTON_LEFT:
                         edge_pane.click(event.pos)
@@ -89,7 +90,7 @@ def main():
                         scope.step_right()
 
                 # Если игрок совершил действие (взял домино и/или положил его в цепочку), то передаем ход ИИ
-                if player_pool_action or (storage_action and not player_pool.is_available_moves):
+                if player_pool_action or (storage_action and not is_available_moves(player_pool)):
                     game_mode = CMP_MOVE_MODE
 
         # Блок функций отрисовки

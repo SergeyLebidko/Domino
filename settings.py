@@ -45,6 +45,11 @@ STORAGE_PANE_COORDS = (W - 3 * CELL_SIZE, CELL_SIZE // 2)
 POOL_DOMINO_INTERVAL = CELL_SIZE + 5
 
 # Режимы игры
-PLAYER_MOVE_MODE = 1    # Ход игрока
-CMP_MOVE_MODE = 2       # Ход компьютера
-END_GAME_MODE = 3       # Игра окончена, вывод результатов
+PLAYER_MOVE_MODE = 1        # Ход игрока
+CMP_MOVE_MODE = 2           # Ход компьютера
+END_GAME_MODE = 3           # Игра окончена, вывод результатов
+
+# Варианты окончания игры
+PLAYER_WIN = 1              # Игрок победил
+CMP_WIN = 2                 # Компьютер победил
+STANDOFF = 3                # Ничья
