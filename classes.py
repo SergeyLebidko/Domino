@@ -241,6 +241,13 @@ class Domino:
     def height(self):
         return self.rect.height
 
+    def __str__(self):
+        if self.orientation == self.RIGHT_ORIENTATION:
+            res = f'[{self.side1}:{self.side2}]'
+        else:
+            res = f'[{self.side2}:{self.side1}]'
+        return res
+
 
 class Chain:
 
@@ -372,8 +379,8 @@ class Storage:
     CIRCLE_COLOR = (50, 150, 0)
     FONT_COLOR = (255, 255, 255)
 
-    def __init__(self, player_pool):
-        self.player_pool = player_pool
+    def __init__(self, player_pool, logger):
+        self.player_pool, self.logger = player_pool, logger
         self.domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
         random.shuffle(self.domino_list)
         self.surface = pg.Surface((CELL_SIZE * 2, CELL_SIZE * 3))
@@ -417,6 +424,7 @@ class Storage:
         if domino_rect.collidepoint(click_x, click_y):
             domino = self.domino_list.pop()
             self.player_pool.add_domino(domino)
+            self.logger.add_to_log('Игрок взял из кучи...')
             return True
 
         return False
@@ -431,9 +439,9 @@ class PlayerPool:
 
     ARROW_COLOR = (255, 255, 255)
 
-    def __init__(self, chain, scope):
+    def __init__(self, chain, scope, logger):
         self.pool = []
-        self.chain, self.scope = chain, scope
+        self.chain, self.scope, self.logger = chain, scope, logger
         self.surface = pg.Surface((self.PANE_WIDTH, self.PANE_HEIGHT))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
 
@@ -513,12 +521,14 @@ class PlayerPool:
             # Обрабатываем добавление домино в левую часть цепочки
             if left_arrow_rect and left_arrow_rect.collidepoint(click_x, click_y):
                 self.chain.add_to_left(domino, PLAYER_LABEL)
+                self.logger.add_to_log(f'Игрок походил влево {domino}')
                 self.scope.move_to_left()
                 break
 
             # Обрабатываем добавление домино в правую часть цепочки
             if right_arrow_rect and right_arrow_rect.collidepoint(click_x, click_y):
                 self.chain.add_to_right(domino, PLAYER_LABEL)
+                self.logger.add_to_log(f'Игрок походил вправо {domino}')
                 self.scope.move_to_right()
                 break
         else:
@@ -623,10 +633,37 @@ class ResultPane:
         )
 
 
+class Logger:
+    FONT_COLOR = (255, 255, 255)
+    MSG_DISPLAY_LIMIT = 7
+
+    def __init__(self):
+        self.log = []
+        self.surface = pg.Surface((W, H))
+        self.surface.set_alpha(150)
+        self.surface.set_colorkey(TRANSPARENT_COLOR)
+
+    def create_surface(self):
+        self.surface.fill(TRANSPARENT_COLOR)
+        if not self.log:
+            return
+
+        font = pg.font.Font(None, 32)
+
+        line = 10
+        for rec in self.log[-self.MSG_DISPLAY_LIMIT:]:
+            font_surface = font.render(rec, 0, self.FONT_COLOR)
+            self.surface.blit(font_surface, (10, line))
+            line += font_surface.get_rect().height
+
+    def add_to_log(self, rec):
+        self.log.append(rec)
+
+
 class Ai:
 
-    def __init__(self, chain, cmp_pool, storage, scope):
-        self.chain, self.cmp_pool, self.storage, self.scope = chain, cmp_pool, storage, scope
+    def __init__(self, chain, cmp_pool, storage, scope, logger):
+        self.chain, self.cmp_pool, self.storage, self.scope, self.logger = chain, cmp_pool, storage, scope, logger
 
     def next(self):
 
@@ -640,6 +677,7 @@ class Ai:
         # Если нет доступных ходов, то пытаемся взять домино из хранилища
         if not moves_list and not self.storage.is_empty:
             domino = self.storage.take_domino()
+            self.logger.add_to_log('Компьютер взял из кучи...')
             self.cmp_pool.add_domino(domino)
             moves = self.get_moves_for_domino(domino)
             moves_list.extend(moves)
@@ -657,9 +695,11 @@ class Ai:
         self.cmp_pool.remove_domino(domino)
         if direction == 'left':
             self.chain.add_to_left(domino, CMP_LABEL)
+            self.logger.add_to_log(f'Компьютер походил влево {domino}')
             self.scope.move_to_left()
         if direction == 'right':
             self.chain.add_to_right(domino, CMP_LABEL)
+            self.logger.add_to_log(f'Компьютер походил вправо {domino}')
             self.scope.move_to_right()
 
     def get_moves_for_domino(self, domino):

@@ -5,7 +5,7 @@ W, H = 1600, 850
 WINDOW_TITLE = 'Domino'
 
 # Частота кадров
-FPS = 30
+FPS = 25
 
 # Цвета для фона
 BACKGROUND_COLORS = [

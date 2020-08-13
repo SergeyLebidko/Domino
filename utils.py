@@ -104,6 +104,11 @@ def draw_game_result(surface, game_result):
     surface.blit(game_result.surface, (0, 0))
 
 
+def draw_log(surface, logger):
+    logger.create_surface()
+    surface.blit(logger.surface, (0, 0))
+
+
 def is_quit_event(events):
     for event in events:
         if event.type == pg.QUIT:

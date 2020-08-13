@@ -2,8 +2,8 @@ import random
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS, PLAYER_MOVE_MODE, CMP_MOVE_MODE, END_GAME_MODE
 from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool, draw_cmp_pool, \
-    is_available_moves, is_quit_event, quit_game, check_end_game, draw_game_result
-from classes import Domino, Chain, Scope, EdgePane, Storage, PlayerPool, CmpPool, Ai, ResultPane
+    is_available_moves, is_quit_event, quit_game, check_end_game, draw_game_result, draw_log
+from classes import Chain, Scope, EdgePane, Storage, PlayerPool, CmpPool, Ai, ResultPane, Logger
 
 
 def main():
@@ -18,6 +18,9 @@ def main():
     # В данном цикле происходит инициализация новой игры
     while True:
 
+        # Создаем объект для логирования
+        logger = Logger()
+
         # Создаем пустую цепочку
         chain = Chain()
 
@@ -27,11 +30,11 @@ def main():
         # Создаем пул домино игрока
         # chain - цепочка, в которую будут добавляться домино из пула
         # scope - область просмотра для быстрого отображения края цепочки при ходе игрока
-        player_pool = PlayerPool(chain, scope)
+        player_pool = PlayerPool(chain, scope, logger)
 
         # Создаем хранилище
         # player_pool - пул домино игрока, в которые будут передаваться домино при клике на значке хранилища
-        storage = Storage(player_pool)
+        storage = Storage(player_pool, logger)
 
         # Заполняем пул игрока случайными домино
         for _ in range(7):
@@ -49,7 +52,7 @@ def main():
         edge_pane = EdgePane(chain, scope)
 
         # Создаем объект ИИ
-        ai = Ai(chain, cmp_pool, storage, scope)
+        ai = Ai(chain, cmp_pool, storage, scope, logger)
 
         # Создаем панель вывода результатов
         result_pane = ResultPane()
@@ -128,6 +131,7 @@ def main():
             draw_player_pool(sc, player_pool)
             draw_cmp_pool(sc, cmp_pool)
             draw_game_result(sc, result_pane)
+            draw_log(sc, logger)
             pg.display.update()
 
             clock.tick(FPS)
