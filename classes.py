@@ -64,7 +64,6 @@ class EdgePane:
 
 
 class Scope:
-
     SCROLL_STEP = 40
     SCROLL_LIMIT = 3 * CELL_SIZE
 
@@ -105,7 +104,6 @@ class Scope:
 
 
 class Domino:
-
     RIGHT_ORIENTATION = 1
     DOWN_ORIENTATION = 2
     LEFT_ORIENTATION = 3
@@ -255,6 +253,11 @@ class Chain:
         self.left_side, self.right_side = None, None
 
     def add_first_domino(self, domino):
+        if domino.is_double:
+            domino.rotate(Domino.UP_ORIENTATION)
+        else:
+            domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
+
         domino_rect = domino.rect
         self.domino_list.append(ChainElement(domino_rect, domino))
         self.left_line, self.right_line = domino_rect.left, domino_rect.right
@@ -273,13 +276,19 @@ class Chain:
             return
 
         # Проверка возможности добавления домино в правую часть цепочки
-        ex_flags = [
-            domino.is_double and domino.side1 != self.right_side,
-            domino.is_right_orientation and domino.side1 != self.right_side,
-            domino.is_left_orientation and domino.side2 != self.right_side
-        ]
-        if any(ex_flags):
-            raise Exception('Некорректное добавления справа')
+        if domino.side1 != self.right_side and domino.side2 != self.right_side:
+            raise Exception('Некорректное добавление справа')
+
+        # Ориентируем домино
+        if domino.is_double:
+            domino.rotate(Domino.UP_ORIENTATION)
+        else:
+            if domino.side1 == self.right_side:
+                domino.rotate(Domino.RIGHT_ORIENTATION)
+                self.right_side = domino.side2
+            elif domino.side2 == self.right_side:
+                domino.rotate(Domino.LEFT_ORIENTATION)
+                self.right_side = domino.side1
 
         domino_rect = domino.rect
         domino_rect = pg.Rect(
@@ -291,24 +300,24 @@ class Chain:
         self.domino_list.append(ChainElement(domino_rect, domino))
         self.right_line = domino_rect.right
 
-        if domino.is_right_orientation:
-            self.right_side = domino.side2
-        if domino.is_left_orientation:
-            self.right_side = domino.side1
-
     def add_to_left(self, domino):
         if not self.domino_list:
             self.add_first_domino(domino)
             return
 
         # Проверка возможности добавления домино в левую часть цепочки
-        ex_flags = [
-            domino.is_double and domino.side1 != self.left_side,
-            domino.is_right_orientation and domino.side2 != self.left_side,
-            domino.is_left_orientation and domino.side1 != self.left_side
-        ]
-        if any(ex_flags):
-            raise Exception('Некорректное добавления слева')
+        if domino.side1 != self.left_side and domino.side2 != self.left_side:
+            raise Exception('Некорректное добавление слева')
+
+        if domino.is_double:
+            domino.rotate(Domino.UP_ORIENTATION)
+        else:
+            if domino.side1 == self.left_side:
+                domino.rotate(Domino.LEFT_ORIENTATION)
+                self.left_side = domino.side2
+            elif domino.side2 == self.left_side:
+                domino.rotate(Domino.RIGHT_ORIENTATION)
+                self.left_side = domino.side1
 
         domino_rect = domino.rect
         domino_rect = pg.Rect(
@@ -319,11 +328,6 @@ class Chain:
         )
         self.domino_list.insert(0, ChainElement(domino_rect, domino))
         self.left_line = domino_rect.left
-
-        if domino.is_right_orientation:
-            self.left_side = domino.side1
-        if domino.is_left_orientation:
-            self.left_side = domino.side2
 
     def create_surface(self, scope):
         self.surface.fill(TRANSPARENT_COLOR)
@@ -353,7 +357,6 @@ class Chain:
 
 
 class Storage:
-
     BACKGROUND_COLOR_1 = (224, 207, 177)
     BACKGROUND_COLOR_2 = (255, 229, 180)
     CIRCLE_COLOR = (50, 150, 0)
@@ -410,7 +413,6 @@ class Storage:
 
 
 class PlayerPool:
-
     PANE_WIDTH = W - 2 * CELL_SIZE
     PANE_HEIGHT = 3 * CELL_SIZE
 
@@ -500,37 +502,13 @@ class PlayerPool:
 
             # Обрабатываем добавление домино в левую часть цепочки
             if left_arrow_rect and left_arrow_rect.collidepoint(click_x, click_y):
-                if domino.is_double:
-                    self.chain.add_to_left(domino)
-                    self.scope.move_to_left()
-                    break
-                if self.chain.left_side == domino.side1:
-                    domino.rotate(Domino.LEFT_ORIENTATION)
-                    self.chain.add_to_left(domino)
-                    self.scope.move_to_left()
-                    break
-                if self.chain.left_side == domino.side2:
-                    domino.rotate(Domino.RIGHT_ORIENTATION)
-                    self.chain.add_to_left(domino)
-                    self.scope.move_to_left()
-                    break
+                self.chain.add_to_left(domino)
+                break
 
             # Обрабатываем добавление домино в правую часть цепочки
             if right_arrow_rect and right_arrow_rect.collidepoint(click_x, click_y):
-                if domino.is_double:
-                    self.chain.add_to_right(domino)
-                    self.scope.move_to_right()
-                    break
-                if self.chain.right_side == domino.side1:
-                    domino.rotate(Domino.RIGHT_ORIENTATION)
-                    self.chain.add_to_right(domino)
-                    self.scope.move_to_right()
-                    break
-                if self.chain.right_side == domino.side2:
-                    domino.rotate(Domino.LEFT_ORIENTATION)
-                    self.chain.add_to_right(domino)
-                    self.scope.move_to_right()
-                    break
+                self.chain.add_to_right(domino)
+                break
         else:
             return False
 
@@ -539,7 +517,6 @@ class PlayerPool:
 
 
 class CmpPool:
-
     PANE_WIDTH = W - 2 * CELL_SIZE
     PANE_HEIGHT = 3 * CELL_SIZE
 
@@ -578,7 +555,6 @@ class CmpPool:
 
 
 class ResultPane:
-
     FONT_COLOR = (20, 20, 20)
 
     def __init__(self):

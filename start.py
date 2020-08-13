@@ -38,12 +38,7 @@ def main():
             player_pool.add_domino(storage.take_domino())
 
         # Выбираем и добавляем первое домино в цепочку
-        first_domino = storage.take_domino()
-        if first_domino.is_double:
-            first_domino.rotate(Domino.UP_ORIENTATION)
-        else:
-            first_domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
-        chain.add_first_domino(first_domino)
+        chain.add_first_domino(storage.take_domino())
 
         # Создаем и заполняем пул компьютера
         cmp_pool = CmpPool(chain)
