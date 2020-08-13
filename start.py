@@ -49,7 +49,7 @@ def main():
         edge_pane = EdgePane(chain, scope)
 
         # Создаем объект ИИ
-        ai = Ai()
+        ai = Ai(chain, cmp_pool, storage, scope)
 
         # Создаем панель вывода результатов
         result_pane = ResultPane()
@@ -82,7 +82,6 @@ def main():
                 for event in events:
                     if event.type == pg.MOUSEBUTTONDOWN:
                         if event.button == pg.BUTTON_LEFT:
-                            edge_pane.click(event.pos)
                             storage_action = storage.click(event.pos)
                             player_pool_action = player_pool.click(event.pos)
 
@@ -110,14 +109,14 @@ def main():
                 if event.type == pg.KEYDOWN:
                     if event.key == pg.K_LEFT:
                         scope.move_to_left()
-                if event.type == pg.KEYDOWN:
                     if event.key == pg.K_RIGHT:
                         scope.move_to_right()
 
                 if event.type == pg.MOUSEBUTTONDOWN:
+                    if event.button == pg.BUTTON_LEFT:
+                        edge_pane.click(event.pos)
                     if event.button == pg.BUTTON_WHEELDOWN:
                         scope.step_left()
-                if event.type == pg.MOUSEBUTTONDOWN:
                     if event.button == pg.BUTTON_WHEELUP:
                         scope.step_right()
 

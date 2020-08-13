@@ -3,10 +3,10 @@ import pygame as pg
 from collections import namedtuple
 from settings import W, H, CELL_SIZE, DOMINO_BACKGROUND_COLOR, DOMINO_BORDER_COLOR, DOMINO_DOT_COLOR, \
     LEFT_EDGE_PANE_COORDS, RIGHT_EDGE_PANE_COORDS, TRANSPARENT_COLOR, STORAGE_PANE_COORDS, POOL_DOMINO_INTERVAL, \
-    PLAYER_WIN, CMP_WIN, RESULT_BACKGROUND_COLORS
+    PLAYER_WIN, CMP_WIN, RESULT_BACKGROUND_COLORS, LABEL_COLORS, PLAYER_LABEL, CMP_LABEL
 from utils import get_player_pool_position, get_domino_backside, is_available_moves, check_available_for_domino
 
-ChainElement = namedtuple('ChainElement', ['rect', 'domino'])
+ChainElement = namedtuple('ChainElement', ['rect', 'domino', 'label'])
 
 
 class EdgePane:
@@ -259,7 +259,7 @@ class Chain:
             domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
 
         domino_rect = domino.rect
-        self.domino_list.append(ChainElement(domino_rect, domino))
+        self.domino_list.append(ChainElement(domino_rect, domino, None))
         self.left_line, self.right_line = domino_rect.left, domino_rect.right
 
         if domino.is_double:
@@ -270,7 +270,7 @@ class Chain:
             if domino.is_left_orientation:
                 self.left_side, self.right_side = domino.side2, domino.side1
 
-    def add_to_right(self, domino):
+    def add_to_right(self, domino, label):
         if not self.domino_list:
             self.add_first_domino(domino)
             return
@@ -297,10 +297,10 @@ class Chain:
             domino_rect.width,
             domino_rect.height
         )
-        self.domino_list.append(ChainElement(domino_rect, domino))
+        self.domino_list.append(ChainElement(domino_rect, domino, label))
         self.right_line = domino_rect.right
 
-    def add_to_left(self, domino):
+    def add_to_left(self, domino, label):
         if not self.domino_list:
             self.add_first_domino(domino)
             return
@@ -326,14 +326,24 @@ class Chain:
             domino_rect.width,
             domino_rect.height
         )
-        self.domino_list.insert(0, ChainElement(domino_rect, domino))
+        self.domino_list.insert(0, ChainElement(domino_rect, domino, label))
         self.left_line = domino_rect.left
 
     def create_surface(self, scope):
         self.surface.fill(TRANSPARENT_COLOR)
-        scope_domino_list = [(rect, domino) for rect, domino in self.domino_list if scope.rect_in_scope(rect)]
-        for rect, domino in scope_domino_list:
+        scope_domino_list = [
+            (rect, domino, label) for rect, domino, label in self.domino_list if scope.rect_in_scope(rect)
+        ]
+        for rect, domino, label in scope_domino_list:
             self.surface.blit(domino.surface, (rect.x - scope.left_line, H // 2 - rect.y))
+            if label:
+                pg.draw.line(
+                    self.surface,
+                    LABEL_COLORS[label],
+                    (rect.left - scope.left_line + 5, H // 2 + rect.height // 2 + 5),
+                    (rect.right - scope.left_line - 5, H // 2 + rect.height // 2 + 5),
+                    3
+                )
 
     @property
     def width(self):
@@ -347,12 +357,12 @@ class Chain:
 
     @property
     def left_domino(self):
-        _, domino = self.domino_list[0]
+        _, domino, _ = self.domino_list[0]
         return domino
 
     @property
     def right_domino(self):
-        _, domino = self.domino_list[-1]
+        _, domino, _ = self.domino_list[-1]
         return domino
 
 
@@ -502,12 +512,14 @@ class PlayerPool:
 
             # Обрабатываем добавление домино в левую часть цепочки
             if left_arrow_rect and left_arrow_rect.collidepoint(click_x, click_y):
-                self.chain.add_to_left(domino)
+                self.chain.add_to_left(domino, PLAYER_LABEL)
+                self.scope.move_to_left()
                 break
 
             # Обрабатываем добавление домино в правую часть цепочки
             if right_arrow_rect and right_arrow_rect.collidepoint(click_x, click_y):
-                self.chain.add_to_right(domino)
+                self.chain.add_to_right(domino, PLAYER_LABEL)
+                self.scope.move_to_right()
                 break
         else:
             return False
@@ -540,6 +552,9 @@ class CmpPool:
 
     def add_domino(self, domino):
         self.pool.append(domino)
+
+    def remove_domino(self, domino):
+        self.domino_list.remove(domino)
 
     @property
     def pool_size(self):
@@ -610,9 +625,48 @@ class ResultPane:
 
 class Ai:
 
-    def __init__(self):
-        self.move_number = 0
+    def __init__(self, chain, cmp_pool, storage, scope):
+        self.chain, self.cmp_pool, self.storage, self.scope = chain, cmp_pool, storage, scope
 
     def next(self):
-        self.move_number += 1
-        print('Ход компьютера ', self.move_number)
+
+        # Формируем список доступных ходов для пула компьютера
+        moves_list = []
+
+        for domino in self.cmp_pool.domino_list:
+            moves = self.get_moves_for_domino(domino)
+            moves_list.extend(moves)
+
+        # Если нет доступных ходов, то пытаемся взять домино из хранилища
+        if not moves_list and not self.storage.is_empty:
+            domino = self.storage.take_domino()
+            self.cmp_pool.add_domino(domino)
+            moves = self.get_moves_for_domino(domino)
+            moves_list.extend(moves)
+
+        # Если и после этого нет доступных ходов - просто выходим
+        if not moves_list:
+            return
+
+        # Выбираем случайный ход
+        move = random.choice(moves_list)
+
+        # Применяем выбранный ход
+        domino = move['domino']
+        direction = move['direction']
+        self.cmp_pool.remove_domino(domino)
+        if direction == 'left':
+            self.chain.add_to_left(domino, CMP_LABEL)
+            self.scope.move_to_left()
+        if direction == 'right':
+            self.chain.add_to_right(domino, CMP_LABEL)
+            self.scope.move_to_right()
+
+    def get_moves_for_domino(self, domino):
+        moves = []
+        available_for_left, available_for_right = check_available_for_domino(domino, self.chain)
+        if available_for_left:
+            moves.append({'direction': 'left', 'domino': domino})
+        if available_for_right:
+            moves.append({'direction': 'right', 'domino': domino})
+        return moves

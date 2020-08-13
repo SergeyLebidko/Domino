@@ -50,6 +50,16 @@ STORAGE_PANE_COORDS = (W - 3 * CELL_SIZE, CELL_SIZE // 2)
 # Интервал между домино в пулах
 POOL_DOMINO_INTERVAL = CELL_SIZE + 5
 
+# Метки домино в цепочке
+PLAYER_LABEL = 'player_label'
+CMP_LABEL = 'cmp_label'
+
+# Цвета для меток
+LABEL_COLORS = {
+    PLAYER_LABEL: (0, 250, 0),
+    CMP_LABEL: (250, 0, 0)
+}
+
 # Режимы игры
 PLAYER_MOVE_MODE = 1        # Ход игрока
 CMP_MOVE_MODE = 2           # Ход компьютера
