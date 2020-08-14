@@ -255,7 +255,7 @@ class Chain:
         self.surface = pg.Surface((W, H))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
 
-        self.domino_list = []
+        self.chain_elements = []
         self.left_line, self.right_line = None, None
         self.left_side, self.right_side = None, None
 
@@ -266,7 +266,7 @@ class Chain:
             domino.rotate(random.choice(Domino.HORIZONTAL_ORIENTATION))
 
         domino_rect = domino.rect
-        self.domino_list.append(ChainElement(domino_rect, domino, None))
+        self.chain_elements.append(ChainElement(domino_rect, domino, None))
         self.left_line, self.right_line = domino_rect.left, domino_rect.right
 
         if domino.is_double:
@@ -278,7 +278,7 @@ class Chain:
                 self.left_side, self.right_side = domino.side2, domino.side1
 
     def add_to_right(self, domino, label):
-        if not self.domino_list:
+        if not self.chain_elements:
             self.add_first_domino(domino)
             return
 
@@ -304,11 +304,11 @@ class Chain:
             domino_rect.width,
             domino_rect.height
         )
-        self.domino_list.append(ChainElement(domino_rect, domino, label))
+        self.chain_elements.append(ChainElement(domino_rect, domino, label))
         self.right_line = domino_rect.right
 
     def add_to_left(self, domino, label):
-        if not self.domino_list:
+        if not self.chain_elements:
             self.add_first_domino(domino)
             return
 
@@ -333,13 +333,13 @@ class Chain:
             domino_rect.width,
             domino_rect.height
         )
-        self.domino_list.insert(0, ChainElement(domino_rect, domino, label))
+        self.chain_elements.insert(0, ChainElement(domino_rect, domino, label))
         self.left_line = domino_rect.left
 
     def create_surface(self, scope):
         self.surface.fill(TRANSPARENT_COLOR)
         scope_domino_list = [
-            (rect, domino, label) for rect, domino, label in self.domino_list if scope.rect_in_scope(rect)
+            (rect, domino, label) for rect, domino, label in self.chain_elements if scope.rect_in_scope(rect)
         ]
         for rect, domino, label in scope_domino_list:
             self.surface.blit(domino.surface, (rect.x - scope.left_line, H // 2 - rect.y))
@@ -358,19 +358,23 @@ class Chain:
 
     @property
     def center_line(self):
-        if not self.domino_list:
+        if not self.chain_elements:
             return 0
         return (self.left_line + self.right_line) // 2
 
     @property
     def left_domino(self):
-        _, domino, _ = self.domino_list[0]
+        _, domino, _ = self.chain_elements[0]
         return domino
 
     @property
     def right_domino(self):
-        _, domino, _ = self.domino_list[-1]
+        _, domino, _ = self.chain_elements[-1]
         return domino
+
+    @property
+    def domino_list(self):
+        return [domino for _, domino, _ in self.chain_elements]
 
 
 class Storage:
@@ -424,7 +428,7 @@ class Storage:
         if domino_rect.collidepoint(click_x, click_y):
             domino = self.domino_list.pop()
             self.player_pool.add_domino(domino)
-            self.logger.add_to_log('Игрок взял из кучи...')
+            self.logger.add_to_log(f'Игрок взял из кучи {domino}')
             return True
 
         return False
@@ -564,7 +568,7 @@ class CmpPool:
         self.pool.append(domino)
 
     def remove_domino(self, domino):
-        self.domino_list.remove(domino)
+        self.pool.remove(domino)
 
     @property
     def pool_size(self):
@@ -648,7 +652,7 @@ class Logger:
         if not self.log:
             return
 
-        font = pg.font.Font(None, 32)
+        font = pg.font.Font(None, 28)
 
         line = 10
         for rec in self.log[-self.MSG_DISPLAY_LIMIT:]:
@@ -686,10 +690,33 @@ class Ai:
         if not moves_list:
             return
 
-        # Выбираем случайный ход
+        # Если доступен только один ход - применяем его. Иначе - рассчитываем рейтинг для доступных ходов
+        if len(moves_list) == 1:
+            move = moves_list[0]
+        else:
+            # Подсчитываем количество уже вышедших в цепочку мастей
+            lear_counts = {lear: 0 for lear in range(7)}
+            for domino in self.chain.domino_list:
+                for side in (domino.side1, domino.side2):
+                    lear_counts[side] += 1
+
+            # Для каждого хода подсчитываем его ценность (рейтинг)
+            for move in moves_list:
+                domino = move['domino']
+                direction = move['direction']
+                rating = move['rating']
+
+                # Первая проверка ценности - проверка ценности дублей
+                if domino.is_double:
+                    rating += lear_counts[domino.side1]
+
+        # Временная заглушка - выбор случайного хода
         move = random.choice(moves_list)
 
         # Применяем выбранный ход
+        self.apply_move(move)
+
+    def apply_move(self, move):
         domino = move['domino']
         direction = move['direction']
         self.cmp_pool.remove_domino(domino)
@@ -706,7 +733,7 @@ class Ai:
         moves = []
         available_for_left, available_for_right = check_available_for_domino(domino, self.chain)
         if available_for_left:
-            moves.append({'direction': 'left', 'domino': domino})
+            moves.append({'direction': 'left', 'rating': 0, 'domino': domino})
         if available_for_right:
-            moves.append({'direction': 'right', 'domino': domino})
+            moves.append({'direction': 'right', 'rating': 0, 'domino': domino})
         return moves
