@@ -248,6 +248,9 @@ class Domino:
             res = f'[{self.side2}:{self.side1}]'
         return res
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class Chain:
 
@@ -694,8 +697,44 @@ class Ai:
         if len(moves_list) == 1:
             move = moves_list[0]
         else:
-            # Сюда вставляем код оценки ходов
-            # Временная заглушка - выбор случайного хода
+            max_rating = 0
+            for move in moves_list:
+                domino = move['domino']
+                direction = move['direction']
+                rating = move['rating']
+
+                # Рейтинг хода дублем тем выше, чем больше домино с мастью дубля уже выбыло из игры
+                if domino.is_double:
+                    for test_domino in self.chain.domino_list:
+                        if test_domino.side1 == domino.side1 or test_domino.side2 == domino.side2:
+                            rating += 1
+
+                # Получаем значения крайних мастей цепочки после применения хода
+                if direction == 'left':
+                    next_right_side = self.chain.right_side
+                    if domino.side1 == self.chain.left_side:
+                        next_left_side = domino.side2
+                    else:
+                        next_left_side = domino.side1
+                if direction == 'right':
+                    next_left_side = self.chain.left_side
+                    if domino.side1 == self.chain.right_side:
+                        next_right_side = domino.side2
+                    else:
+                        next_right_side = domino.side1
+
+                # Подсчитываем количество соответсвующих мастей у компьютера и в цепочке
+                for test_domino in (self.chain.domino_list + self.cmp_pool.domino_list):
+                    if test_domino.side1 == next_right_side or test_domino.side2 == next_right_side:
+                        rating += 1
+                    if test_domino.side1 == next_left_side or test_domino.side2 == next_left_side:
+                        rating += 1
+
+                move['rating'] = rating
+                max_rating = max(rating, max_rating)
+
+            # Из ходов, получивших максимальный рейтинг случайным образом выбирается следующий ход компьютера
+            moves_list = list(filter(lambda x: x['rating'] == max_rating, moves_list))
             move = random.choice(moves_list)
 
         # Применяем выбранный ход
