@@ -77,7 +77,10 @@ def main():
                     result_pane.set_game_result(game_result)
                     next_mode = END_GAME_MODE
                 else:
-                    next_mode = PLAYER_MOVE_MODE
+                    if storage.is_empty and not is_available_moves(player_pool):
+                        next_mode = CMP_MOVE_MODE
+                    else:
+                        next_mode = PLAYER_MOVE_MODE
 
             # Если сейчас ход игрока, то просматриваем клики по пулу игрока и хранилищу
             if game_mode == PLAYER_MOVE_MODE:

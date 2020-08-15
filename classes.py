@@ -694,24 +694,9 @@ class Ai:
         if len(moves_list) == 1:
             move = moves_list[0]
         else:
-            # Подсчитываем количество уже вышедших в цепочку мастей
-            lear_counts = {lear: 0 for lear in range(7)}
-            for domino in self.chain.domino_list:
-                for side in (domino.side1, domino.side2):
-                    lear_counts[side] += 1
-
-            # Для каждого хода подсчитываем его ценность (рейтинг)
-            for move in moves_list:
-                domino = move['domino']
-                direction = move['direction']
-                rating = move['rating']
-
-                # Первая проверка ценности - проверка ценности дублей
-                if domino.is_double:
-                    rating += lear_counts[domino.side1]
-
-        # Временная заглушка - выбор случайного хода
-        move = random.choice(moves_list)
+            # Сюда вставляем код оценки ходов
+            # Временная заглушка - выбор случайного хода
+            move = random.choice(moves_list)
 
         # Применяем выбранный ход
         self.apply_move(move)
