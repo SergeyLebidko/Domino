@@ -34,7 +34,7 @@ def main():
 
         # Создаем хранилище
         # player_pool - пул домино игрока, в которые будут передаваться домино при клике на значке хранилища
-        storage = Storage(player_pool, logger)
+        storage = Storage(player_pool, logger, chain)
 
         # Заполняем пул игрока случайными домино
         for _ in range(7):

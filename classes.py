@@ -386,13 +386,14 @@ class Storage:
     CIRCLE_COLOR = (50, 150, 0)
     FONT_COLOR = (255, 255, 255)
 
-    def __init__(self, player_pool, logger):
-        self.player_pool, self.logger = player_pool, logger
+    def __init__(self, player_pool, logger, chain):
+        self.player_pool, self.logger, self.chain = player_pool, logger, chain
         self.domino_list = [Domino(side1, side2) for side1 in range(7) for side2 in range(side1, 7)]
         random.shuffle(self.domino_list)
         self.surface = pg.Surface((CELL_SIZE * 2, CELL_SIZE * 3))
         self.surface.set_colorkey(TRANSPARENT_COLOR)
         self.font = pg.font.Font(None, 24)
+        self.last_chain_left, self.last_chain_right = None, None
 
     def create_surface(self):
         self.surface.fill(TRANSPARENT_COLOR)
@@ -432,9 +433,15 @@ class Storage:
             domino = self.domino_list.pop()
             self.player_pool.add_domino(domino)
             self.logger.add_to_log(f'Игрок взял из кучи {domino}')
+            self.last_chain_left, self.last_chain_right = self.chain.left_side, self.chain.right_side
             return True
 
         return False
+
+    def get_last_chain_sides(self):
+        """Метод возвращает масти, на концах цепочки во время последнего взятия игроком домино из хранилиша"""
+
+        return self.last_chain_left, self.last_chain_right
 
 
 class PlayerPool:
@@ -728,6 +735,17 @@ class Ai:
                     if test_domino.side1 == next_right_side or test_domino.side2 == next_right_side:
                         rating += 1
                     if test_domino.side1 == next_left_side or test_domino.side2 == next_left_side:
+                        rating += 1
+
+                # Проверяем, совпадают ли полученные в результате применения тестируемого хода масти на концах
+                # цепочки с теми, которые были во время последнего обращения игрока к хранилищу
+                left_side_from_storage, right_side_from_storage = self.storage.get_last_chain_sides()
+                if left_side_from_storage is not None and right_side_from_storage is not None:
+                    side_set = set((left_side_from_storage, right_side_from_storage, next_right_side, next_left_side))
+                    len_side_set = len(side_set)
+                    if len_side_set <= 2:
+                        rating += 2
+                    elif len_side_set == 3:
                         rating += 1
 
                 move['rating'] = rating
