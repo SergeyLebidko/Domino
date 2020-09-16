@@ -1,4 +1,3 @@
-import random
 import pygame as pg
 from settings import W, H, WINDOW_TITLE, FPS, PLAYER_MOVE_MODE, CMP_MOVE_MODE, END_GAME_MODE
 from utils import draw_background, draw_chain, draw_edge_pane, draw_storage_pane, draw_player_pool, draw_cmp_pool, \
