@@ -153,3 +153,80 @@ def test_minimap_has_expected_geometry(app):
     bar = _bar(scene)
     assert bar.height == MINIMAP_H
     assert bar.width > 200
+
+
+@pytest.mark.parametrize('theme', THEME_ORDER)
+def test_minimap_colors_are_distinct(app, theme):
+    """Сегменты игрока и ИИ должны заметно отличаться и быть насыщенными."""
+    app.ctx.set_theme(theme)
+    palette = app.ctx.palette
+
+    def distance(a, b):
+        return sum((a[i] - b[i]) ** 2 for i in range(3)) ** 0.5
+
+    assert distance(palette.player_bright, palette.ai_bright) > 120
+    assert distance(palette.player_bright, palette.panel) > 90
+    assert distance(palette.ai_bright, palette.panel) > 90
+
+
+def test_minimap_has_no_rounded_artifacts(app):
+    """Регрессия: индикатор окна давал «зелёный полукруг» посреди полосы.
+
+    Раньше окно рисовалось скруглённым контуром, который обрезался по
+    внутренней области — оставались только боковые дуги. Теперь это тонкие
+    вертикальные метки: акцентных пикселей должно быть мало и они должны
+    стоять ровными столбцами.
+    """
+    scene = _scene(app)
+    scene.draw(app.screen)
+
+    bar = _bar(scene)
+    palette = scene.ctx.palette
+    accent = palette.accent
+
+    def is_accent(pixel) -> bool:
+        return all(abs(pixel[i] - accent[i]) < 30 for i in range(3))
+
+    band = pg.Rect(bar.left + 50, bar.top + 4, bar.width - 100, bar.height - 8)
+    columns: dict[int, int] = {}
+    for y in range(band.top, band.bottom):
+        for x in range(band.left, band.right):
+            if is_accent(app.screen.get_at((x, y))):
+                columns[x] = columns.get(x, 0) + 1
+
+    # Метки тонкие: не больше 2-3 столбцов на каждую границу окна.
+    assert len(columns) <= 8, f'слишком широкое пятно акцента: {len(columns)} столбцов'
+    # И каждый столбец почти на всю высоту — то есть это ровная линия,
+    # а не дуга.
+    tall = [count for count in columns.values() if count >= band.height - 4]
+    assert tall, f'метки не похожи на ровные линии: {sorted(columns.values())}'
+
+
+def test_minimap_fill_has_segment_separators(app):
+    """Между костями есть разделители — полоска читается как цепочка."""
+    scene = _scene(app)
+    scene.draw(app.screen)
+
+    bar = _bar(scene)
+    palette = scene.ctx.palette
+    inner_top, inner_bottom = bar.top + 6, bar.bottom - 6
+
+    def is_fill(pixel) -> bool:
+        colors = {palette.player_bright, palette.ai_bright, palette.neutral_bright}
+        return any(
+            all(abs(pixel[i] - color[i]) < 40 for i in range(3))
+            for color in colors
+        )
+
+    # Считаем «разрывы» заливки по центральной строке.
+    row = (inner_top + inner_bottom) // 2
+    gaps = 0
+    previous = True
+    for x in range(bar.left + 20, bar.right - 20):
+        filled = is_fill(app.screen.get_at((x, row)))
+        if previous and not filled:
+            gaps += 1
+        previous = filled
+
+    assert gaps >= 3, f'разделителей слишком мало: {gaps}'
+

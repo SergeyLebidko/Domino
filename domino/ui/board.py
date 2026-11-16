@@ -280,14 +280,51 @@ class Board:
         for tile in self.tiles:
             x = inner.x + tile.x * scale + offset[0]
             width = max(2, tile.width * scale + 0.5)
-            color = theme.player if tile.slot.owner == 0 else (
-                theme.ai if tile.slot.owner == 1 else theme.text_dim
+            color = theme.player_bright if tile.slot.owner == 0 else (
+                theme.ai_bright if tile.slot.owner == 1 else theme.neutral_bright
             )
             pg.draw.rect(
                 layer,
                 color,
                 pg.Rect(int(x), inner.y + offset[1], int(width), inner.height),
             )
+
+        # Разделители между костями: на светлом фоне они делают сегменты
+        # различимыми, чтобы полоска читалась как цепочка, а не как градиент.
+        separator = (*theme.panel, 150)
+        for tile in self.tiles[1:]:
+            x = inner.x + tile.x * scale + offset[0]
+            pg.draw.line(
+                layer,
+                separator,
+                (int(x) - 1, inner.y + offset[1]),
+                (int(x) - 1, inner.bottom + offset[1]),
+                1,
+            )
+
+        # Окно просмотра: вместо контура рисуем затемнение вне окна и две
+        # тонкие вертикальные метки на его границах. Контур со скруглением
+        # при обрезке по внутренней области превращался в «полукруги».
+        view_left = inner.x + (self.camera - rect.width / 2) * scale + offset[0]
+        view_width = rect.width * scale
+        view = pg.Rect(int(view_left), inner.y + offset[1],
+                       max(4, int(view_width)), inner.height)
+
+        if view.width < inner.width - 8:
+            shade = (0, 0, 0, 52)
+            if view.left > inner.left + offset[0]:
+                pg.draw.rect(
+                    layer, shade,
+                    pg.Rect(inner.left + offset[0], view.top,
+                            view.left - (inner.left + offset[0]), view.height),
+                )
+            right_edge = view.right
+            inner_right = inner.right + offset[0]
+            if right_edge < inner_right:
+                pg.draw.rect(
+                    layer, shade,
+                    pg.Rect(right_edge, view.top, inner_right - right_edge, view.height),
+                )
 
         # Маска: скруглённый прямоугольник на 1 px меньше полосы, чтобы
         # заливка не закрашивала саму рамку.
@@ -300,13 +337,13 @@ class Board:
         # Рамка поверх заливки, чтобы контур оставался чистым.
         pg.draw.rect(surface, theme.panel_edge, bar, 1, border_radius=radius)
 
-        # Окно просмотра.
-        view_left = self.camera - rect.width / 2
-        view_width = rect.width * scale
-        view = pg.Rect(int(inner.x + view_left * scale), bar.y - 4, max(24, int(view_width)), bar.height + 8)
-        view = view.clip(inner.inflate(8, 0))
-        if view.width > 4:
-            pg.draw.rect(surface, theme.accent, view, 2, border_radius=radius + 2)
+        # Метки границ окна просмотра — только внутри полосы, без дуг.
+        if view.width < inner.width - 8:
+            for x in (view.left + bar.x, view.right + bar.x - 2):
+                line = pg.Rect(x, inner.top, 2, inner.height)
+                line = line.clip(inner)
+                if line.width > 0:
+                    pg.draw.rect(surface, theme.accent, line)
 
 
 class ChainAnimation:

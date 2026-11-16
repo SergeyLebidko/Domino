@@ -26,6 +26,9 @@ PIP_LAYOUT: dict[int, tuple[tuple[int, int], ...]] = {
     6: ((-1, -1), (-1, 0), (-1, 1), (1, -1), (1, 0), (1, 1)),
 }
 
+#: Насколько широко разносить точки по половинке кости.
+PIP_SPREAD = 0.70
+
 FONT_CANDIDATES = {
     'sans': ('dejavusans', 'liberationsans', 'notosans', 'freesans', 'arial'),
     'serif': ('dejavuserif', 'liberationserif', 'notoserif', 'freeserif', 'georgia'),
@@ -342,11 +345,28 @@ def _draw_pips(
     radius: int,
     inset: float,
 ) -> None:
+    """Точки на половинке кости.
+
+    Шаг между точками ограничен снизу их диаметром с зазором: на мелких
+    костях (логотип, превью) точки иначе слипаются в одно пятно.
+    """
     cx, cy = half.center
     usable = min(half.width, half.height) / 2 - inset
-    for gx, gy in PIP_LAYOUT[value]:
-        x = cx + gx * usable * 0.62
-        y = cy + gy * usable * 0.62
+    layout = PIP_LAYOUT[value]
+
+    # Максимальное смещение по сетке [-1..1] определяет шаг.
+    spread = usable * PIP_SPREAD
+    # Минимальный шаг, при котором точки не касаются: диаметр + зазор.
+    minimum = radius * 2 + max(1, radius // 2)
+    step_x = step_y = max(spread, minimum)
+    # Но за пределы половинки кости выходить нельзя.
+    limit = min(half.width, half.height) / 2 - radius - 1
+    step_x = min(step_x, limit)
+    step_y = min(step_y, limit)
+
+    for gx, gy in layout:
+        x = cx + gx * step_x
+        y = cy + gy * step_y
         if radius >= 3:
             pg.draw.aacircle(surface, theme.pip, (int(x), int(y)), radius)
             pg.draw.aacircle(surface, theme.pip, (int(x), int(y)), radius - 1)

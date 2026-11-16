@@ -46,6 +46,11 @@ class Theme:
     # Стороны
     player: Color
     ai: Color
+    # Насыщенные цвета для мини-карты: на светлом фоне полосы базовые
+    # оттенки выглядят блёкло.
+    player_bright: Color
+    ai_bright: Color
+    neutral_bright: Color
     success: Color
     danger: Color
     shadow: ColorA
@@ -82,6 +87,9 @@ FLAT_DARK = Theme(
     tile_back_pattern=(72, 83, 101),
     player=(47, 198, 176),
     ai=(232, 118, 108),
+    player_bright=(38, 224, 196),
+    ai_bright=(255, 96, 84),
+    neutral_bright=(176, 188, 208),
     success=(94, 204, 132),
     danger=(232, 118, 108),
     shadow=(0, 0, 0, 110),
@@ -117,6 +125,9 @@ CLUB_GREEN = Theme(
     tile_back_pattern=(120, 90, 54),
     player=(126, 214, 152),
     ai=(230, 140, 120),
+    player_bright=(96, 230, 140),
+    ai_bright=(255, 108, 92),
+    neutral_bright=(198, 212, 186),
     success=(126, 214, 152),
     danger=(230, 140, 120),
     shadow=(0, 0, 0, 120),
@@ -152,6 +163,9 @@ WARM_WOOD = Theme(
     tile_back_pattern=(146, 104, 72),
     player=(246, 186, 120),
     ai=(214, 112, 96),
+    player_bright=(255, 206, 86),
+    ai_bright=(232, 74, 66),
+    neutral_bright=(228, 202, 170),
     success=(168, 208, 130),
     danger=(214, 112, 96),
     shadow=(0, 0, 0, 120),

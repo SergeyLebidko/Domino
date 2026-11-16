@@ -549,8 +549,9 @@ class GameScene(Scene):
         draw_panel(surface, self.topbar, theme, fill=theme.panel, border=theme.panel_edge, radius=0)
         pg.draw.line(surface, theme.panel_edge, (0, self.topbar.bottom), (settings.W, self.topbar.bottom), 1)
 
-        # Логотип
-        logo = assets.tile(6, 6, True, 16)
+        # Логотип: одна точка вместо дубля 6:6 — при таком размере шесть
+        # кружков сливаются в пятно.
+        logo = assets.tile(1, 1, True, 16)
         logo.blit_at(surface, 22, 16)
         text(surface, assets, 'ДОМИНО', (66, 22), 20, theme.text, bold=True, heading=True)
 
