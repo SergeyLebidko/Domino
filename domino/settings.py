@@ -16,7 +16,8 @@ USE_SCALED = True
 
 TOPBAR_H = 64
 SIDEBAR_W = 320
-HAND_H = 236
+#: Высота панели с костями игрока.
+HAND_H = 226
 BOARD_MARGIN = 18
 
 #: Размер половинки кости на столе.

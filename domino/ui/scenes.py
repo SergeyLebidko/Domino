@@ -236,24 +236,32 @@ class GameScene(Scene):
 
     def _layout(self) -> None:
         w, h = settings.W, settings.H
+        margin = settings.BOARD_MARGIN
+
         self.topbar = pg.Rect(0, 0, w, settings.TOPBAR_H)
+
+        # Раскладка строится от краёв окна, чтобы отступы были одинаковыми
+        # со всех сторон: поле и панель руки не должны слипаться.
+        content_top = settings.TOPBAR_H + margin
+        content_bottom = h - margin
+
+        self.hand_rect = pg.Rect(
+            margin,
+            content_bottom - settings.HAND_H,
+            w - settings.SIDEBAR_W - margin * 2,
+            settings.HAND_H,
+        )
         self.sidebar_rect = pg.Rect(
-            w - settings.SIDEBAR_W - settings.BOARD_MARGIN,
-            settings.TOPBAR_H + settings.BOARD_MARGIN,
+            w - settings.SIDEBAR_W - margin,
+            content_top,
             settings.SIDEBAR_W,
-            h - settings.TOPBAR_H - settings.BOARD_MARGIN * 2,
+            content_bottom - content_top,
         )
         self.board_rect = pg.Rect(
-            settings.BOARD_MARGIN,
-            settings.TOPBAR_H + settings.BOARD_MARGIN,
-            self.sidebar_rect.left - settings.BOARD_MARGIN * 2,
-            h - settings.TOPBAR_H - settings.BOARD_MARGIN - settings.HAND_H,
-        )
-        self.hand_rect = pg.Rect(
-            settings.BOARD_MARGIN,
-            h - settings.HAND_H,
-            self.board_rect.width,
-            settings.HAND_H - 10,
+            margin,
+            content_top,
+            self.hand_rect.width,
+            self.hand_rect.top - margin - content_top,
         )
         self.hand.panel = self.hand_rect
         self.bazaar_rect = pg.Rect(0, 0, 150, 40)
