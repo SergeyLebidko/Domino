@@ -77,7 +77,11 @@ def fit_text(font: pg.font.Font, value: str, max_width: int) -> str:
 
 
 class Button:
-    """Прямоугольная кнопка со стилями primary / ghost / danger."""
+    """Прямоугольная кнопка со стилями primary / ghost / danger.
+
+    Если задана ``tooltip``, при наведении над кнопкой появляется подпись —
+    это нужно для кнопок-иконок в верхней панели.
+    """
 
     def __init__(
         self,
@@ -89,6 +93,7 @@ class Button:
         icon: str | None = None,
         radius: int | None = None,
         enabled: bool = True,
+        tooltip: str | None = None,
     ) -> None:
         self.rect = pg.Rect(rect)
         self.label = label
@@ -97,14 +102,19 @@ class Button:
         self.icon = icon
         self.radius = radius
         self.enabled = enabled
+        self.tooltip = tooltip
         self.hovered = False
+        self.hover_time = 0.0
         self.pressed = False
 
     def handle(self, event: pg.event.Event) -> bool:
         if not self.enabled:
             return False
         if event.type == pg.MOUSEMOTION:
+            was_hovered = self.hovered
             self.hovered = self.rect.collidepoint(event.pos)
+            if self.hovered and not was_hovered:
+                self.hover_time = 0.0
         elif event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT:
             if self.rect.collidepoint(event.pos):
                 self.pressed = True
@@ -146,17 +156,35 @@ class Button:
             pg.draw.rect(glow, (*theme.accent, 50), glow.get_rect(), border_radius=radius)
             surface.blit(glow, rect.topleft)
 
+        # Только иконка: рисуем строго по центру кнопки.
+        if self.icon and not self.label:
+            _draw_icon(surface, self.icon, rect.center, _icon_size(rect), color)
+            return
+
         font = assets.body(18 if self.rect.height <= 44 else 20, bold=self.style == 'primary')
-        image = font.render(self.label, True, color)
-        target = image.get_rect(center=rect.center)
-        if self.icon:
-            icon_size = 20
-            total = image.get_width() + icon_size + 10
-            start = rect.centerx - total // 2
-            surface.blit(image, (start + icon_size + 10, target.y))
-            _draw_icon(surface, self.icon, (start + icon_size // 2, rect.centery), icon_size, color)
-        else:
-            surface.blit(image, target)
+        image = text_image(font, self.label, color)
+        if not self.icon:
+            surface.blit(image, image.get_rect(center=rect.center))
+            return
+
+        # Иконка + подпись: центрируем группу целиком.
+        icon_size = _icon_size(rect)
+        gap = 10
+        total = icon_size + gap + image.get_width()
+        start = rect.centerx - total // 2
+        _draw_icon(surface, self.icon, (start + icon_size // 2, rect.centery),
+                   icon_size, color)
+        surface.blit(image, (start + icon_size + gap,
+                             image.get_rect(centery=rect.centery).y))
+
+
+def _icon_size(rect: pg.Rect) -> int:
+    """Размер глифа: половина меньшей стороны, но не больше 20 px."""
+    return max(12, min(20, min(rect.width, rect.height) // 2))
+
+
+#: Во сколько раз рисуем глиф крупнее, чтобы потом сгладить уменьшением.
+ICON_SUPERSAMPLE = 4
 
 
 def _draw_icon(
@@ -166,32 +194,120 @@ def _draw_icon(
     size: int,
     color: tuple[int, int, int],
 ) -> None:
+    """Рисует глиф кнопки, сглаженный суперсэмплингом."""
+    scale = ICON_SUPERSAMPLE
+    big = size * scale
+    layer = pg.Surface((big * 2, big * 2), pg.SRCALPHA)
+    origin = (layer.get_width() // 2, layer.get_height() // 2)
+    _paint_icon(layer, name, origin, big, (*color, 255))
+
+    smooth = pg.transform.smoothscale(layer, (layer.get_width() // scale,
+                                             layer.get_height() // scale))
+    surface.blit(smooth, (center[0] - smooth.get_width() // 2,
+                          center[1] - smooth.get_height() // 2))
+
+
+def _paint_icon(
+    surface: pg.Surface,
+    name: str,
+    center: tuple[int, int],
+    size: int,
+    color: tuple[int, int, int, int],
+) -> None:
+    """Глифы кнопок. Все симметричны относительно ``center``."""
     cx, cy = center
-    half = size // 2
+
     if name == 'pause':
-        pg.draw.rect(surface, color, (cx - half // 2 - 3, cy - half, 4, size), border_radius=1)
-        pg.draw.rect(surface, color, (cx + half // 2 - 1, cy - half, 4, size), border_radius=1)
-    elif name == 'menu':
-        for i in range(3):
-            y = cy - half + i * (size // 2)
-            pg.draw.rect(surface, color, (cx - half, y, size, 3), border_radius=1)
-    elif name == 'refresh':
-        pg.draw.arc(surface, color, (cx - half, cy - half, size, size), 0.6, 5.4, 3)
+        width = max(3, int(size * 0.20))
+        height = int(size * 0.78)
+        gap = max(3, int(size * 0.16))
+        left = cx - gap / 2 - width
+        top = cy - height / 2
+        pg.draw.rect(surface, color, (left, top, width, height), border_radius=width // 3)
+        pg.draw.rect(surface, color, (cx + gap / 2, top, width, height), border_radius=width // 3)
+        return
+
+    if name == 'menu':
+        width = int(size * 0.80)
+        thickness = max(3, int(size * 0.13))
+        spacing = int(size * 0.28)
+        left = cx - width / 2
+        for index in (-1, 0, 1):
+            y = cy + index * spacing - thickness / 2
+            pg.draw.rect(surface, color, (left, y, width, thickness),
+                         border_radius=thickness // 2)
+        return
+
+    if name == 'restart':
+        # Круговая стрелка: дуга с разрывом и треугольный наконечник.
+        radius = int(size * 0.34)
+        thickness = max(3, int(size * 0.13))
+        box = pg.Rect(cx - radius, cy - radius, radius * 2, radius * 2)
+        pg.draw.arc(surface, color, box, math.radians(35), math.radians(320), thickness)
+
+        angle = math.radians(35)
+        tip = (cx + radius * math.cos(angle), cy - radius * math.sin(angle))
+        head = radius * 0.62
         pg.draw.polygon(
             surface,
             color,
             [
-                (cx + half - 2, cy - half + 2),
-                (cx + half + 3, cy - half + 1),
-                (cx + half + 1, cy - half + 7),
+                (tip[0] + head * 0.35, tip[1] - head * 0.55),
+                (tip[0] - head * 0.75, tip[1] - head * 0.35),
+                (tip[0] + head * 0.05, tip[1] + head * 0.75),
             ],
         )
-    elif name == 'theme':
-        pg.draw.aacircle(surface, color, (cx, cy), half, 2)
-        pg.draw.rect(surface, color, (cx - 2, cy - half, 4, size))
-    elif name == 'close':
-        pg.draw.line(surface, color, (cx - half + 2, cy - half + 2), (cx + half - 2, cy + half - 2), 3)
-        pg.draw.line(surface, color, (cx + half - 2, cy - half + 2), (cx - half + 2, cy + half - 2), 3)
+        return
+
+    if name == 'palette':
+        # «Контраст»: круг, левая половина залита — стандартный знак темы.
+        radius = int(size * 0.36)
+        ring = max(3, int(size * 0.12))
+        pg.draw.aacircle(surface, color, (cx, cy), radius, ring)
+
+        # Заливаем левую половину внутри кольца.
+        half = pg.Surface((radius * 2, radius * 2), pg.SRCALPHA)
+        pg.draw.circle(half, color, (radius, radius), radius - ring // 2 - 1)
+        mask = pg.Rect(radius, 0, radius, radius * 2)
+        half.fill((0, 0, 0, 0), mask)
+        surface.blit(half, (cx - radius, cy - radius))
+        return
+
+    if name == 'close':
+        arm = int(size * 0.32)
+        width = max(3, int(size * 0.13))
+        pg.draw.line(surface, color, (cx - arm, cy - arm), (cx + arm, cy + arm), width)
+        pg.draw.line(surface, color, (cx + arm, cy - arm), (cx - arm, cy + arm), width)
+
+
+def icon_button_width(assets: Assets, label: str, font_size: int = 17,
+                      padding: int = 26, gap: int = 8) -> int:
+    """Ширина кнопки «иконка + подпись» под конкретный текст."""
+    text_width = assets.body(font_size, bold=True).size(label)[0]
+    return 20 + gap + text_width + padding
+
+
+def draw_tooltip(
+    surface: pg.Surface,
+    assets: Assets,
+    theme: Theme,
+    anchor: pg.Rect,
+    value: str,
+) -> pg.Rect:
+    """Всплывающая подпись под элементом ``anchor``."""
+    font = assets.body(14)
+    image = text_image(font, value, theme.text)
+    rect = pg.Rect(0, 0, image.get_width() + 20, 28)
+    rect.midtop = (anchor.centerx, anchor.bottom + 8)
+
+    # Не даём подсказке уехать за край окна.
+    screen = surface.get_rect()
+    rect.left = max(6, min(rect.left, screen.right - rect.width - 6))
+
+    pg.draw.rect(surface, theme.panel_alt, rect, border_radius=8)
+    pg.draw.rect(surface, theme.accent, rect, 1, border_radius=8)
+    surface.blit(image, image.get_rect(center=rect.center))
+    return rect
 
 
 class Segmented:

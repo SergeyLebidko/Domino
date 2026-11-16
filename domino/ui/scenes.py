@@ -18,7 +18,7 @@ from domino.ui.hand import Hand
 from domino.ui.session import GameSession
 from domino.ui.sidebar import LogEntry, Sidebar
 from domino.ui.theme import THEME_ORDER, THEMES
-from domino.ui.widgets import Button, Segmented, draw_panel, text
+from domino.ui.widgets import Button, Segmented, draw_panel, draw_tooltip, text
 
 
 class MenuScene(Scene):
@@ -260,13 +260,37 @@ class GameScene(Scene):
 
     def _build_buttons(self) -> None:
         right = settings.W - settings.BOARD_MARGIN
-        self.btn_menu = Button(pg.Rect(right - 46, 12, 40, 40), '', self._open_pause,
-                               icon='menu', radius=10)
-        self.btn_theme = Button(pg.Rect(right - 96, 12, 40, 40), '', self.ctx.cycle_theme,
-                                icon='theme', radius=10)
-        self.btn_restart = Button(pg.Rect(right - 146, 12, 40, 40), '', self._restart,
-                                  icon='refresh', radius=10)
-        self.buttons = [self.btn_menu, self.btn_theme, self.btn_restart]
+        height = 36
+        top = 14
+        gap = 8
+
+        self.btn_pause = Button(
+            pg.Rect(right - 118, top, 118, height),
+            'Пауза',
+            self._open_pause,
+            icon='pause',
+            radius=10,
+        )
+        self.btn_restart = Button(
+            pg.Rect(right - 118 - 128 - gap, top, 128, height),
+            'Заново',
+            self._restart,
+            icon='restart',
+            radius=10,
+        )
+        self.btn_theme = Button(
+            pg.Rect(right - 118 - 128 - 116 - gap * 2, top, 116, height),
+            'Тема',
+            self._cycle_theme,
+            icon='palette',
+            radius=10,
+        )
+        # Порядок слева направо: тема, новая партия, пауза.
+        self.buttons = [self.btn_theme, self.btn_restart, self.btn_pause]
+
+    def _cycle_theme(self) -> None:
+        self.ctx.cycle_theme()
+        self.btn_theme.label = THEMES[self.ctx.theme].title
 
     # -- данные ---------------------------------------------------------------
 
@@ -562,6 +586,17 @@ class GameScene(Scene):
         # Кнопки
         for button in self.buttons:
             button.draw(surface, assets, theme)
+        self._draw_button_tooltips(surface, assets, theme)
+
+    def _draw_button_tooltips(self, surface, assets, theme) -> None:
+        """Подпись под кнопкой-иконкой после короткой задержки наведения."""
+        for button in self.buttons:
+            if not button.hovered or not button.tooltip:
+                continue
+            button.hover_time += 1 / max(1, settings.FPS)
+            if button.hover_time < 0.22:
+                continue
+            draw_tooltip(surface, assets, theme, button.rect, button.tooltip)
 
     def _draw_opponent(self, surface, assets, theme) -> None:
         count = len(self.session.state.hands[1])
