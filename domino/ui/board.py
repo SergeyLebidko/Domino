@@ -1,4 +1,4 @@
-"""Отрисовка стола: цепочка костей, камера, мини-карта."""
+"""Отрисовка стола: цепочка костей и камера."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import math
 import pygame as pg
 
 from domino.engine import GameState
-from domino.settings import CELL, CHAIN_GAP, MINIMAP_H
+from domino.settings import CELL, CHAIN_GAP
 from domino.ui.assets import Assets
 from domino.ui.theme import Theme
 from domino.ui.widgets import approach, clamp, draw_panel
@@ -173,7 +173,6 @@ class Board:
         self._draw_axis(surface, rect, theme, state)
         self._draw_chain(surface, rect, theme)
         self._draw_ends(surface, rect, theme)
-        self._draw_minimap(surface, rect, theme, state)
 
     def _draw_axis(self, surface: pg.Surface, rect: pg.Rect, theme: Theme, state: GameState) -> None:
         """Лёгкие направляющие к краям стола."""
@@ -261,90 +260,6 @@ class Board:
                 x = end.right + 10
                 pg.draw.line(surface, color, (x, end.top + 6), (x + 6, end.centery), width)
                 pg.draw.line(surface, color, (x + 6, end.centery), (x, end.bottom - 6), width)
-
-    def _draw_minimap(self, surface: pg.Surface, rect: pg.Rect, theme: Theme, state: GameState) -> None:
-        if self.chain_width <= 0:
-            return
-        bar = pg.Rect(rect.left + 40, rect.bottom - MINIMAP_H - 20, rect.width - 80, MINIMAP_H)
-        radius = MINIMAP_H // 2
-        draw_panel(surface, bar, theme, fill=theme.panel, border=theme.panel_edge, radius=radius)
-
-        inner = bar.inflate(-8, -8)
-        scale = inner.width / max(1, self.chain_width)
-
-        # Заливка рисуется прямоугольниками, поэтому её нужно обрезать по
-        # скруглённой форме полосы — иначе цветные сегменты вылезают за
-        # закруглённые торцы.
-        layer = pg.Surface(bar.size, pg.SRCALPHA)
-        offset = (-bar.x, -bar.y)
-        for tile in self.tiles:
-            x = inner.x + tile.x * scale + offset[0]
-            width = max(2, tile.width * scale + 0.5)
-            color = theme.player_bright if tile.slot.owner == 0 else (
-                theme.ai_bright if tile.slot.owner == 1 else theme.neutral_bright
-            )
-            pg.draw.rect(
-                layer,
-                color,
-                pg.Rect(int(x), inner.y + offset[1], int(width), inner.height),
-            )
-
-        # Разделители между костями: на светлом фоне они делают сегменты
-        # различимыми, чтобы полоска читалась как цепочка, а не как градиент.
-        separator = (*theme.panel, 150)
-        for tile in self.tiles[1:]:
-            x = inner.x + tile.x * scale + offset[0]
-            pg.draw.line(
-                layer,
-                separator,
-                (int(x) - 1, inner.y + offset[1]),
-                (int(x) - 1, inner.bottom + offset[1]),
-                1,
-            )
-
-        # Окно просмотра: вместо контура рисуем затемнение вне окна и две
-        # тонкие вертикальные метки на его границах. Контур со скруглением
-        # при обрезке по внутренней области превращался в «полукруги».
-        view_left = inner.x + (self.camera - rect.width / 2) * scale + offset[0]
-        view_width = rect.width * scale
-        view = pg.Rect(int(view_left), inner.y + offset[1],
-                       max(4, int(view_width)), inner.height)
-
-        if view.width < inner.width - 8:
-            shade = (0, 0, 0, 52)
-            if view.left > inner.left + offset[0]:
-                pg.draw.rect(
-                    layer, shade,
-                    pg.Rect(inner.left + offset[0], view.top,
-                            view.left - (inner.left + offset[0]), view.height),
-                )
-            right_edge = view.right
-            inner_right = inner.right + offset[0]
-            if right_edge < inner_right:
-                pg.draw.rect(
-                    layer, shade,
-                    pg.Rect(right_edge, view.top, inner_right - right_edge, view.height),
-                )
-
-        # Маска: скруглённый прямоугольник на 1 px меньше полосы, чтобы
-        # заливка не закрашивала саму рамку.
-        mask = pg.Surface(bar.size, pg.SRCALPHA)
-        pg.draw.rect(mask, (255, 255, 255, 255), mask.get_rect().inflate(-2, -2),
-                     border_radius=max(1, radius - 1))
-        layer.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
-        surface.blit(layer, bar.topleft)
-
-        # Рамка поверх заливки, чтобы контур оставался чистым.
-        pg.draw.rect(surface, theme.panel_edge, bar, 1, border_radius=radius)
-
-        # Метки границ окна просмотра — только внутри полосы, без дуг.
-        if view.width < inner.width - 8:
-            for x in (view.left + bar.x, view.right + bar.x - 2):
-                line = pg.Rect(x, inner.top, 2, inner.height)
-                line = line.clip(inner)
-                if line.width > 0:
-                    pg.draw.rect(surface, theme.accent, line)
-
 
 class ChainAnimation:
     """Кость, летящая из руки или базара в цепочку."""
