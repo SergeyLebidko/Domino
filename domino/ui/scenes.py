@@ -415,6 +415,16 @@ class GameScene(Scene):
             self._draw_from_bazaar()
             return
 
+        # Клик по подсказке «◀»/«▶» сразу кладёт кость к нужному концу.
+        # Проверяем раньше кости: пилюля лежит вплотную к её краю.
+        hint = self.hand.hint_at(pos)
+        if hint is not None:
+            tile, side = hint
+            move = Move(tile.tile, side)
+            if move in self.session.legal_moves(0):
+                self._play(move)
+            return
+
         tile = self.hand.click(pos)
         if tile is not None:
             self.drag_tile = tile
@@ -598,7 +608,8 @@ class GameScene(Scene):
             overlay.fill((0, 0, 0, 40))
             surface.blit(overlay, rect.topleft)
 
-        self.hand.draw(surface, state, theme, interactive=active)
+        self.hand.draw(surface, state, theme, interactive=active,
+                       dragging=self.drag_tile is not None)
 
         label = f'Ваши кости: {len(state.hands[0])}'
         text(surface, assets, label, (rect.left + 18, rect.top + 12), 13, theme.text_dim, bold=True)

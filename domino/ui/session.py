@@ -195,9 +195,12 @@ class GameSession:
         moves = self.state.legal_moves(0)
         if moves:
             if len(moves) == 1:
-                self.hint = 'Доступен один ход — кликните по кости и её концу.'
+                self.hint = 'Наведите на кость и нажмите стрелку ◀ или ▶ над ней.'
             else:
-                self.hint = f'Доступно ходов: {len(moves)}. Кликните по кости, затем по концу цепочки.'
+                self.hint = (
+                    f'Доступно ходов: {len(moves)}. Стрелка ◀ или ▶ над костью '
+                    'кладёт её к нужному концу.'
+                )
         elif self.state.bazaar:
             self.hint = 'Нет подходящих костей — возьмите кость из базара.'
         else:

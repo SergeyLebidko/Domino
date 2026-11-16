@@ -1,14 +1,25 @@
-"""Рука игрока: наведение, выбор кости, подсветка концов."""
+"""Рука игрока: наведение, выбор кости, подсказки концов."""
 
 from __future__ import annotations
 
 import pygame as pg
 
 from domino.engine import GameState
-from domino.settings import CELL_HAND, HAND_GAP, W
+from domino.settings import (
+    CELL_HAND,
+    HAND_GAP,
+    HAND_PAD_TOP,
+    HINT_GAP,
+    HINT_H,
+    HINT_W,
+    W,
+)
 from domino.ui.assets import Assets, text_image
 from domino.ui.theme import Theme
 from domino.ui.widgets import approach
+
+#: Стрелки для подсказок левого и правого концов.
+HINT_ARROWS = {'left': '◀', 'right': '▶'}
 
 
 class HandTile:
@@ -35,8 +46,15 @@ class Hand:
         self.tiles: list[HandTile] = []
         self.selected: int | None = None
         self.hovered: int | None = None
+        #: Кость, для которой сейчас показаны подсказки концов.
+        self.active: int | None = None
         self.panel = pg.Rect(0, 0, 1, 1)
+        self.mouse: tuple[int, int] = (0, 0)
         self._time = 0.0
+        self._sides: dict = {}
+        self._interactive = True
+
+    # -- раскладка ----------------------------------------------------------
 
     def set_hand(self, hand, rect: pg.Rect) -> None:
         self.panel = pg.Rect(rect)
@@ -56,20 +74,39 @@ class Hand:
         count = len(self.tiles)
         width = count * CELL_HAND + (count - 1) * self.GAP
         x = self.panel.centerx - width // 2
-        y = self.panel.top + 44
+        y = self.panel.top + HAND_PAD_TOP
         for tile in self.tiles:
             tile.rect.topleft = (x, y)
             x += CELL_HAND + self.GAP
 
+    # -- обновление ---------------------------------------------------------
+
     def update(self, dt: float, state: GameState, mouse_pos, interactive: bool) -> None:
         self._time += dt
+        self.mouse = tuple(mouse_pos)
         self.layout()
-        legal = {(m.tile, m.side) for m in state.legal_moves(0)} if interactive else set()
+        self._interactive = interactive
+        self._sides = self._grouped_sides(state)
+        legal = {(tile, side) for tile, sides in self._sides.items() for side in sides}
+
         self.hovered = None
         for tile in self.tiles:
-            hit = interactive and tile.rect.move(0, -int(tile.lift)).collidepoint(mouse_pos)
-            if hit:
+            if interactive and tile.rect.move(0, -int(tile.lift)).collidepoint(mouse_pos):
                 self.hovered = tile.index
+                break
+
+        # Подсказки не должны исчезать, когда курсор ведут к самой пилюле:
+        # она расположена над костью, вне её прямоугольника.
+        over_hint = self._tile_under_hint(mouse_pos)
+        if over_hint is not None:
+            self.active = over_hint
+        elif self.hovered is not None and self.tiles[self.hovered].tile in self._sides:
+            self.active = self.hovered
+        else:
+            self.active = self.selected
+
+        for tile in self.tiles:
+            hit = interactive and (tile.index == self.hovered or tile.index == over_hint)
             tile.hover = approach(tile.hover, 1.0 if hit else 0.0, 14.0, dt)
             tile.selected = tile.index == self.selected
             target = 0.0
@@ -79,10 +116,74 @@ class Hand:
                 target = self.LIFT
             tile.lift = approach(tile.lift, target, 16.0, dt)
 
-            # Подсветка играбельности: маленькая точка под костью.
-            playable_left = (tile.tile, 'left') in legal
-            playable_right = (tile.tile, 'right') in legal
-            tile.playable = playable_left or playable_right if interactive else False
+            tile.playable = interactive and (
+                (tile.tile, 'left') in legal or (tile.tile, 'right') in legal
+            )
+
+    @staticmethod
+    def _grouped_sides(state: GameState) -> dict:
+        """Доступные концы по каждой кости руки."""
+        grouped: dict = {}
+        for move in state.legal_moves(0):
+            grouped.setdefault(move.tile, set()).add(move.side)
+        return grouped
+
+    # -- геометрия подсказок ------------------------------------------------
+
+    def hint_rects(self, tile: HandTile, sides) -> dict[str, pg.Rect]:
+        """Прямоугольники подсказок над костью: слева и/или справа."""
+        top = tile.rect.y - int(tile.lift) - HINT_H - HINT_GAP
+        top = max(self.panel.top + 2, top)
+
+        rects: dict[str, pg.Rect] = {}
+        if 'left' in sides:
+            rects['left'] = pg.Rect(tile.rect.left, top, HINT_W, HINT_H)
+        if 'right' in sides:
+            rects['right'] = pg.Rect(tile.rect.right - HINT_W, top, HINT_W, HINT_H)
+
+        # Пилюли не должны выезжать за панель руки.
+        low, high = self.panel.left + 3, self.panel.right - HINT_W - 3
+        for rect in rects.values():
+            rect.left = max(low, min(rect.left, high))
+        return rects
+
+    def _tile_under_hint(self, pos) -> int | None:
+        """Индекс кости, чья подсказка находится под курсором."""
+        candidates = []
+        if self.hovered is not None:
+            candidates.append(self.hovered)
+        if self.selected is not None:
+            candidates.append(self.selected)
+        if self.active is not None:
+            candidates.append(self.active)
+        for index in dict.fromkeys(candidates):
+            if index >= len(self.tiles):
+                continue
+            tile = self.tiles[index]
+            sides = self._sides.get(tile.tile)
+            if not sides:
+                continue
+            for rect in self.hint_rects(tile, sides).values():
+                if rect.inflate(4, 4).collidepoint(pos):
+                    return index
+        return None
+
+    def hint_at(self, pos) -> tuple[HandTile, str] | None:
+        """Подсказка под курсором: (кость, 'left'|'right') или None.
+
+        Проверяются все кости, для которых подсказка могла бы быть показана,
+        чтобы клик срабатывал и в тот кадр, когда курсор только подвели.
+        """
+        if not getattr(self, '_interactive', True):
+            return None
+        for tile in self.tiles:
+            sides = self._sides.get(tile.tile)
+            if not sides:
+                continue
+            for side, rect in self.hint_rects(tile, sides).items():
+                if rect.inflate(4, 4).collidepoint(pos):
+                    return tile, side
+        return None
 
     # -- события ------------------------------------------------------------
 
@@ -110,12 +211,18 @@ class Hand:
 
     # -- отрисовка ----------------------------------------------------------
 
-    def draw(self, surface: pg.Surface, state: GameState, theme: Theme, interactive: bool) -> None:
-        legal_sides = {}
-        if interactive:
-            for move in state.legal_moves(0):
-                legal_sides.setdefault(move.tile, set()).add(move.side)
+    def draw(
+        self,
+        surface: pg.Surface,
+        state: GameState,
+        theme: Theme,
+        interactive: bool,
+        dragging: bool = False,
+    ) -> None:
+        grouped = self._sides if self._sides else self._grouped_sides(state)
 
+        # Проход 1: кости. Подсказки здесь не рисуются, иначе соседняя кость
+        # ложится поверх пилюли предыдущей.
         for tile in self.tiles:
             y = tile.rect.y - int(tile.lift)
             sprite = self.assets.tile(tile.tile.a, tile.tile.b, True, CELL_HAND)
@@ -124,16 +231,23 @@ class Hand:
                 surface.blit(glow, (tile.rect.x - 18, y - 18))
             sprite.blit_at(surface, tile.rect.x, y)
 
-            sides = legal_sides.get(tile.tile, set())
+            sides = grouped.get(tile.tile, set())
             if not sides and interactive:
                 dim = pg.Surface((CELL_HAND, 2 * CELL_HAND), pg.SRCALPHA)
                 dim.fill((0, 0, 0, 74))
                 surface.blit(dim, (tile.rect.x, y))
-            elif sides:
-                if tile.selected or tile.hover > 0.35:
-                    self._draw_targets(surface, theme, tile, y, sides)
-                else:
-                    self._dot(surface, theme, tile, y)
+            elif sides and tile.index != self.active:
+                self._dot(surface, theme, tile, y)
+
+        # Проход 2: подсказки только для одной активной кости — поверх всего.
+        if not interactive or dragging:
+            return
+        if self.active is None or self.active >= len(self.tiles):
+            return
+        tile = self.tiles[self.active]
+        sides = grouped.get(tile.tile)
+        if sides:
+            self._draw_hints(surface, theme, tile, sides)
 
     @staticmethod
     def _dot(surface: pg.Surface, theme: Theme, tile: HandTile, y: int) -> None:
@@ -141,25 +255,12 @@ class Hand:
         cy = y + 2 * CELL_HAND + 12
         pg.draw.circle(surface, theme.accent, (tile.rect.centerx, cy), 3)
 
-    def _draw_targets(self, surface: pg.Surface, theme: Theme, tile: HandTile, y: int, sides: set[str]) -> None:
-        """Подписи-«чипы» у кости: к какому концу её можно поставить."""
-        font = self.assets.body(12, bold=True)
-        cy = y + 2 * CELL_HAND + 8
-        if 'left' in sides:
-            self._chip(surface, font, theme, tile.rect.centerx - 5, cy, '◀ слева', align='left')
-        if 'right' in sides:
-            self._chip(surface, font, theme, tile.rect.centerx + 5, cy, 'справа ▶', align='right')
-
-    @staticmethod
-    def _chip(surface, font, theme: Theme, x: int, y: int, label: str, *, align: str) -> None:
-        image = text_image(font, label, theme.accent_text)
-        rect = pg.Rect(0, 0, image.get_width() + 14, 21)
-        if align == 'left':
-            rect.topright = (x, y)
-        else:
-            rect.topleft = (x, y)
-        pg.draw.rect(surface, theme.accent, rect, border_radius=10)
-        surface.blit(image, image.get_rect(center=rect.center))
+    def _draw_hints(self, surface: pg.Surface, theme: Theme, tile: HandTile, sides) -> None:
+        font = self.assets.body(11, bold=True)
+        for side, rect in self.hint_rects(tile, sides).items():
+            image = text_image(font, HINT_ARROWS[side], theme.accent_text)
+            pg.draw.rect(surface, theme.accent, rect, border_radius=HINT_H // 2)
+            surface.blit(image, image.get_rect(center=rect.center))
 
     def drop_target(self, pos) -> str | None:
         """Куда игрок бросил кость: 'left'/'right' относительно центра стола."""
