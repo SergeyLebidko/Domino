@@ -1,2 +1,9 @@
 .idea/
 venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Пользовательские настройки игры создаются при запуске.
+settings.json
+settings.json.tmp
+screenshots/dev/
