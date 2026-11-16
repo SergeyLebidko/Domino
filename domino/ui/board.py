@@ -266,17 +266,39 @@ class Board:
         if self.chain_width <= 0:
             return
         bar = pg.Rect(rect.left + 40, rect.bottom - MINIMAP_H - 20, rect.width - 80, MINIMAP_H)
-        draw_panel(surface, bar, theme, fill=theme.panel, border=theme.panel_edge, radius=MINIMAP_H // 2)
+        radius = MINIMAP_H // 2
+        draw_panel(surface, bar, theme, fill=theme.panel, border=theme.panel_edge, radius=radius)
 
         inner = bar.inflate(-8, -8)
         scale = inner.width / max(1, self.chain_width)
+
+        # Заливка рисуется прямоугольниками, поэтому её нужно обрезать по
+        # скруглённой форме полосы — иначе цветные сегменты вылезают за
+        # закруглённые торцы.
+        layer = pg.Surface(bar.size, pg.SRCALPHA)
+        offset = (-bar.x, -bar.y)
         for tile in self.tiles:
-            x = inner.x + tile.x * scale
+            x = inner.x + tile.x * scale + offset[0]
             width = max(2, tile.width * scale + 0.5)
             color = theme.player if tile.slot.owner == 0 else (
                 theme.ai if tile.slot.owner == 1 else theme.text_dim
             )
-            pg.draw.rect(surface, color, pg.Rect(int(x), inner.y, int(width), inner.height))
+            pg.draw.rect(
+                layer,
+                color,
+                pg.Rect(int(x), inner.y + offset[1], int(width), inner.height),
+            )
+
+        # Маска: скруглённый прямоугольник на 1 px меньше полосы, чтобы
+        # заливка не закрашивала саму рамку.
+        mask = pg.Surface(bar.size, pg.SRCALPHA)
+        pg.draw.rect(mask, (255, 255, 255, 255), mask.get_rect().inflate(-2, -2),
+                     border_radius=max(1, radius - 1))
+        layer.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MULT)
+        surface.blit(layer, bar.topleft)
+
+        # Рамка поверх заливки, чтобы контур оставался чистым.
+        pg.draw.rect(surface, theme.panel_edge, bar, 1, border_radius=radius)
 
         # Окно просмотра.
         view_left = self.camera - rect.width / 2
@@ -284,7 +306,7 @@ class Board:
         view = pg.Rect(int(inner.x + view_left * scale), bar.y - 4, max(24, int(view_width)), bar.height + 8)
         view = view.clip(inner.inflate(8, 0))
         if view.width > 4:
-            pg.draw.rect(surface, theme.accent, view, 2, border_radius=MINIMAP_H // 2 + 2)
+            pg.draw.rect(surface, theme.accent, view, 2, border_radius=radius + 2)
 
 
 class ChainAnimation:
