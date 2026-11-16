@@ -30,6 +30,37 @@ def test_board_and_hand_are_separated(app):
     assert gap == settings.BOARD_MARGIN, f'зазор {gap} вместо {settings.BOARD_MARGIN}'
 
 
+def test_board_and_sidebar_are_separated(app):
+    """Регрессия: после правки раскладки поле прилипло к правой панели."""
+    scene = GameScene(app)
+    gap = scene.sidebar_rect.left - scene.board_rect.right
+    assert gap == settings.BOARD_MARGIN, f'зазор {gap} вместо {settings.BOARD_MARGIN}'
+
+
+def test_hand_and_sidebar_are_separated(app):
+    """Панель руки тоже не должна касаться правой панели."""
+    scene = GameScene(app)
+    gap = scene.sidebar_rect.left - scene.hand_rect.right
+    assert gap == settings.BOARD_MARGIN, f'зазор {gap} вместо {settings.BOARD_MARGIN}'
+
+
+def test_all_gaps_are_equal(app):
+    """Все зазоры между областями и краями одинаковы."""
+    scene = GameScene(app)
+    margin = settings.BOARD_MARGIN
+    gaps = {
+        'левый край': scene.board_rect.left,
+        'правый край': settings.W - scene.sidebar_rect.right,
+        'верх': scene.board_rect.top - settings.TOPBAR_H,
+        'низ': settings.H - scene.hand_rect.bottom,
+        'поле/рука': scene.hand_rect.top - scene.board_rect.bottom,
+        'поле/сайдбар': scene.sidebar_rect.left - scene.board_rect.right,
+        'рука/сайдбар': scene.sidebar_rect.left - scene.hand_rect.right,
+    }
+    for name, gap in gaps.items():
+        assert gap == margin, f'{name}: {gap} вместо {margin}'
+
+
 def test_margins_are_symmetric(app):
     """Отступы от краёв окна одинаковы со всех сторон."""
     scene = GameScene(app)

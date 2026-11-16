@@ -245,22 +245,27 @@ class GameScene(Scene):
         content_top = settings.TOPBAR_H + margin
         content_bottom = h - margin
 
-        self.hand_rect = pg.Rect(
-            margin,
-            content_bottom - settings.HAND_H,
-            w - settings.SIDEBAR_W - margin * 2,
-            settings.HAND_H,
-        )
         self.sidebar_rect = pg.Rect(
             w - settings.SIDEBAR_W - margin,
             content_top,
             settings.SIDEBAR_W,
             content_bottom - content_top,
         )
+
+        # Ширина левой колонки: от левого края до сайдбара минус зазор между
+        # ними, иначе поле прилипает к правой панели.
+        column_width = self.sidebar_rect.left - margin * 2
+
+        self.hand_rect = pg.Rect(
+            margin,
+            content_bottom - settings.HAND_H,
+            column_width,
+            settings.HAND_H,
+        )
         self.board_rect = pg.Rect(
             margin,
             content_top,
-            self.hand_rect.width,
+            column_width,
             self.hand_rect.top - margin - content_top,
         )
         self.hand.panel = self.hand_rect
