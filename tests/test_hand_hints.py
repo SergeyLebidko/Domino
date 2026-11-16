@@ -97,6 +97,90 @@ def test_hint_survives_pointer_moving_onto_it(app):
     assert scene.hand.hint_at(centre) == (tile, 'left')
 
 
+def test_hint_survives_every_pixel_of_the_gap(app):
+    """Регрессия: между костью и стрелкой была мёртвая полоса.
+
+    При уходе мыши с кости подъём гаснет, кость опускается, и подсказка
+    уезжает вниз быстрее курсора — она «убегала» от мыши.
+    """
+    scene, state = _prepare(app)
+    tile = scene.hand.tiles[0]
+    for _ in range(12):
+        scene.hand.update(0.05, state, tile.rect.center, interactive=True)
+
+    hint = scene.hand.hint_rects(tile, scene.hand._sides[tile.tile])['left']
+    x = tile.rect.centerx
+
+    lost = []
+    y = tile.rect.centery
+    while y >= hint.centery:
+        scene.hand.update(0.05, state, (x, y), interactive=True)
+        if scene.hand.active != tile.index:
+            lost.append(y)
+        y -= 1
+    assert not lost, f'подсказка исчезала на y={lost}'
+
+
+def test_hint_stays_visible_on_all_its_edges(app):
+    """Курсор на любом краю стрелки — подсказка остаётся и кликабельна."""
+    scene, state = _prepare(app)
+    tile = scene.hand.tiles[1]
+    for _ in range(10):
+        scene.hand.update(0.05, state, tile.rect.center, interactive=True)
+
+    for side, rect in scene.hand.hint_rects(tile, scene.hand._sides[tile.tile]).items():
+        for point in (
+            rect.center,
+            (rect.centerx, rect.top + 2),
+            (rect.centerx, rect.bottom - 2),
+            (rect.left + 2, rect.centery),
+            (rect.right - 2, rect.centery),
+        ):
+            scene.hand.update(0.05, state, point, interactive=True)
+            assert scene.hand.active == tile.index, (side, point)
+            assert scene.hand.hint_at(point) is not None, (side, point)
+
+
+def test_hint_arrow_glyph_is_centered(app):
+    """Стрелка внутри пилюли должна быть отцентрирована по маске."""
+    from domino.ui.hand import HINT_ARROW_SIZE, _draw_hint_arrow
+
+    for side in ('left', 'right'):
+        surface = pg.Surface((40, 40), pg.SRCALPHA)
+        _draw_hint_arrow(surface, (20, 20), side, (0, 0, 0), HINT_ARROW_SIZE)
+
+        mask = pg.mask.from_surface(surface)
+        rects = mask.get_bounding_rects()
+        assert rects, f'{side}: стрелка не нарисована'
+        bbox = rects[0].unionall(rects[1:])
+
+        assert abs(bbox.centerx - 20) <= 1, (side, bbox)
+        assert abs(bbox.centery - 20) <= 1, (side, bbox)
+
+
+def test_hint_arrow_points_in_the_right_direction(app):
+    """Левый конец — треугольник остриём влево, правый — вправо."""
+    from domino.ui.hand import HINT_ARROW_SIZE, _draw_hint_arrow
+
+    def ink_columns(side: str) -> list[int]:
+        surface = pg.Surface((40, 40), pg.SRCALPHA)
+        _draw_hint_arrow(surface, (20, 20), side, (0, 0, 0), HINT_ARROW_SIZE)
+        mask = pg.mask.from_surface(surface)
+        return [sum(1 for y in range(40) if mask.get_at((x, y))) for x in range(40)]
+
+    left = ink_columns('left')
+    right = ink_columns('right')
+
+    def weighted_side(columns):
+        total = sum(columns)
+        return sum(x * c for x, c in enumerate(columns)) / total
+
+    left_centre = weighted_side(left)
+    right_centre = weighted_side(right)
+    # У «◀» масса смещена к правому краю (остриё слева), у «▶» — наоборот.
+    assert left_centre > right_centre
+
+
 def test_hint_click_plays_the_tile(app):
     """Клик по «◀»/«▶» сразу кладёт кость к нужному концу."""
     app.ctx.first_player = 0

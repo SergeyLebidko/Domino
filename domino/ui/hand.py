@@ -14,12 +14,58 @@ from domino.settings import (
     HINT_W,
     W,
 )
-from domino.ui.assets import Assets, text_image
+from domino.ui.assets import Assets
 from domino.ui.theme import Theme
 from domino.ui.widgets import approach
 
 #: Стрелки для подсказок левого и правого концов.
 HINT_ARROWS = {'left': '◀', 'right': '▶'}
+
+#: Высота треугольника-стрелки в подсказке.
+HINT_ARROW_SIZE = 9
+
+#: Во сколько раз рисуем стрелку крупнее перед сглаживанием.
+_ARROW_SUPERSAMPLE = 6
+
+
+def _draw_hint_arrow(
+    surface: pg.Surface,
+    center: tuple[int, int],
+    side: str,
+    color: tuple[int, int, int],
+    size: int,
+) -> None:
+    """Треугольник-стрелка, отцентрированный по ``center``.
+
+    Рисуется примитивами, а не глифом шрифта: у символов ``◀``/``▶``
+    несимметричные поля, из-за чего стрелка съезжала вниз на пару пикселей.
+    """
+    scale = _ARROW_SUPERSAMPLE
+    extent = size * scale
+    layer = pg.Surface((extent * 2, extent * 2), pg.SRCALPHA)
+    cx = cy = extent
+
+    half_h = extent // 2
+    half_w = int(extent * 0.42)
+    if side == 'left':
+        points = [
+            (cx - half_w, cy),
+            (cx + half_w, cy - half_h),
+            (cx + half_w, cy + half_h),
+        ]
+    else:
+        points = [
+            (cx + half_w, cy),
+            (cx - half_w, cy - half_h),
+            (cx - half_w, cy + half_h),
+        ]
+    pg.draw.polygon(layer, color, points)
+
+    smooth = pg.transform.smoothscale(
+        layer, (layer.get_width() // scale, layer.get_height() // scale)
+    )
+    surface.blit(smooth, (center[0] - smooth.get_width() // 2,
+                          center[1] - smooth.get_height() // 2))
 
 
 class HandTile:
@@ -89,14 +135,17 @@ class Hand:
         self._sides = self._grouped_sides(state)
         legal = {(tile, side) for tile, sides in self._sides.items() for side in sides}
 
+        # Зона наведения = сама кость + подсказки над ней. Иначе между костью
+        # и стрелкой остаётся «мёртвая полоса»: ушли с кости — подъём гаснет,
+        # кость опускается, и подсказка уезжает вниз быстрее курсора.
         self.hovered = None
-        for tile in self.tiles:
-            if interactive and tile.rect.move(0, -int(tile.lift)).collidepoint(mouse_pos):
-                self.hovered = tile.index
-                break
+        if interactive:
+            for tile in self.tiles:
+                zone = self._hover_zone(tile, self._sides.get(tile.tile))
+                if zone.collidepoint(mouse_pos):
+                    self.hovered = tile.index
+                    break
 
-        # Подсказки не должны исчезать, когда курсор ведут к самой пилюле:
-        # она расположена над костью, вне её прямоугольника.
         over_hint = self._tile_under_hint(mouse_pos)
         if over_hint is not None:
             self.active = over_hint
@@ -119,6 +168,14 @@ class Hand:
             tile.playable = interactive and (
                 (tile.tile, 'left') in legal or (tile.tile, 'right') in legal
             )
+
+    def _hover_zone(self, tile: HandTile, sides) -> pg.Rect:
+        """Прямоугольник наведения: кость вместе с подсказками над ней."""
+        zone = tile.rect.move(0, -int(tile.lift))
+        if sides:
+            for rect in self.hint_rects(tile, sides).values():
+                zone.union_ip(rect)
+        return zone.inflate(2, 2)
 
     @staticmethod
     def _grouped_sides(state: GameState) -> dict:
@@ -256,11 +313,9 @@ class Hand:
         pg.draw.circle(surface, theme.accent, (tile.rect.centerx, cy), 3)
 
     def _draw_hints(self, surface: pg.Surface, theme: Theme, tile: HandTile, sides) -> None:
-        font = self.assets.body(11, bold=True)
         for side, rect in self.hint_rects(tile, sides).items():
-            image = text_image(font, HINT_ARROWS[side], theme.accent_text)
             pg.draw.rect(surface, theme.accent, rect, border_radius=HINT_H // 2)
-            surface.blit(image, image.get_rect(center=rect.center))
+            _draw_hint_arrow(surface, rect.center, side, theme.accent_text, HINT_ARROW_SIZE)
 
     def drop_target(self, pos) -> str | None:
         """Куда игрок бросил кость: 'left'/'right' относительно центра стола."""
