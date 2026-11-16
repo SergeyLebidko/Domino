@@ -392,17 +392,25 @@ def render_tile_back(theme: Theme, cell: int, vertical: bool = True) -> TileSpri
     pg.draw.rect(surface, theme.tile_back, face, border_radius=radius)
     pg.draw.rect(surface, theme.tile_back_pattern, face.inflate(-2, -2), 2, border_radius=max(2, radius - 1))
 
-    # Ромб по центру — «рубашка».
+    # Ромб по центру — «рубашка». Рисуем линиями: у draw.polygon с толщиной
+    # чернила ложатся несимметрично (сдвиг +1 px). Полуразмер берём чётным,
+    # чтобы полная высота ромба делилась на два без остатка — иначе при
+    # чётной высоте кости он смещается на полпикселя.
     step = cell // 5
-    center = face.center
-    diamond = [
-        (center[0], center[1] - step),
-        (center[0] + step, center[1]),
-        (center[0], center[1] + step),
-        (center[0] - step, center[1]),
+    if step % 2:
+        step += 1
+    cx, cy = face.center
+    corners = [
+        (cx, cy - step),
+        (cx + step, cy),
+        (cx, cy + step),
+        (cx - step, cy),
     ]
-    pg.draw.polygon(surface, theme.tile_back_pattern, diamond, 2)
-    pg.draw.line(surface, theme.tile_back_pattern, (pad + 4, center[1]), (pad + width - 4, center[1]), 1)
+    for index in range(4):
+        pg.draw.line(surface, theme.tile_back_pattern,
+                     corners[index], corners[(index + 1) % 4], 1)
+    pg.draw.line(surface, theme.tile_back_pattern,
+                 (pad + 4, cy), (pad + width - 4, cy), 1)
     return TileSprite(surface, pad, width, height)
 
 
