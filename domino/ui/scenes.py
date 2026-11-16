@@ -226,6 +226,8 @@ class GameScene(Scene):
         self.result_shown = False
         self.result_panel = None
         self.time = 0.0
+        #: Ход ИИ отложен до остановки камеры после хода игрока.
+        self._ai_pending = False
         self._sync_logs()
 
         self._layout()
@@ -331,6 +333,19 @@ class GameScene(Scene):
         if self.session.state.turn == 1 and not self.session.is_over and not self.result_shown:
             self.session.start_ai_turn()
 
+    def _tick_pending_ai(self) -> None:
+        """Запускает ход ИИ, когда камера доехала до поставленной кости.
+
+        Без этой паузы прокрутка к своей кости и сразу затем прокрутка к
+        кости соперника сливались в один рывок поля.
+        """
+        if not self._ai_pending:
+            return
+        if not self.board.camera_settled():
+            return
+        self._ai_pending = False
+        self._maybe_start_ai()
+
     # -- действия -------------------------------------------------------------
 
     def _restart(self) -> None:
@@ -356,8 +371,11 @@ class GameScene(Scene):
         self.hand.clear_selection()
         self.drag_tile = None
         self._sync()
-        self.board.center_on_latest()
-        self._maybe_start_ai()
+        # Ведём камеру к тому концу, куда легла кость, а не всегда к правому.
+        self.board.center_on_side(move.side)
+        # Ход ИИ запускается только после того, как камера доехала: иначе
+        # два прыжка подряд сливаются в один рывок.
+        self._ai_pending = True
 
     def _side_for_selected(self) -> str | None:
         tile = self.hand.selected_tile
@@ -500,13 +518,19 @@ class GameScene(Scene):
     def update(self, dt: float) -> None:
         self.time += dt
         if not self.result_shown and self.session.poll_ai():
-            pass
-        if not self.result_shown and self.session.state.turn == 1 and not self.session.ai_thinking:
-            self._maybe_start_ai()
+            # Ход ИИ применён — ведём камеру к тому концу, куда легла кость.
+            if self.session.last_move_side:
+                self.board.center_on_side(self.session.last_move_side)
 
         self._sync()
         self._update_end_highlight()
         self.board.update(dt, self.board_rect, self.session.state)
+        self._tick_pending_ai()
+
+        if not self.result_shown and self.session.state.turn == 1 and not self.session.ai_thinking:
+            if not self._ai_pending:
+                self._maybe_start_ai()
+
         self.hand.update(dt, self.session.state, pg.mouse.get_pos(),
                          interactive=self.session.state.turn == 0 and not self.session.is_over)
         self.sidebar.update(dt)

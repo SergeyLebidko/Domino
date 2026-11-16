@@ -61,7 +61,7 @@ def capture(theme: str, frames: list[tuple[pg.Surface, int]], steps: int = 10) -
                 snap(320)
         scene.session.play_move(move)
         scene._sync()
-        scene.board.center_on_latest()
+        scene.board.center_on_side(move.side)
         for _ in range(5):
             scene.update(0.05)
         snap(420)

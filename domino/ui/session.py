@@ -58,6 +58,8 @@ class GameSession:
         self._thread: threading.Thread | None = None
         self._reply: AiReply | None = None
         self._ai_started_at = 0.0
+        #: Сторона последнего хода — по ней интерфейс ведёт камеру.
+        self.last_move_side: str | None = None
         self.hint: str | None = None
         self.last_drawn: tuple[Tile, ...] = ()
         #: Номер версии состояния: сцена синхронизирует вид только при изменении.
@@ -135,6 +137,7 @@ class GameSession:
             return False
 
         self.state = play(self.state, move)
+        self.last_move_side = move.side
         if player == 0:
             self.add_log(f'Вы: {move.tile} {self._side_label(move.side)}', 'player', player)
         else:

@@ -99,11 +99,23 @@ class Board:
         tile = self.tiles[0] if side == 'left' else self.tiles[-1]
         self.target_camera = tile.x + tile.width / 2
 
-    def center_on_latest(self) -> None:
+    def center_on_side(self, side: str) -> None:
+        """Центрирует камеру на конце, куда только что легла кость."""
         if not self.tiles:
             return
-        tile = self.tiles[-1]
+        tile = self.tiles[0] if side == 'left' else self.tiles[-1]
         self.target_camera = tile.x + tile.width / 2
+
+    def center_on_index(self, index: int) -> None:
+        """Центрирует камеру на конкретной кости цепочки."""
+        if not self.tiles or not 0 <= index < len(self.tiles):
+            return
+        tile = self.tiles[index]
+        self.target_camera = tile.x + tile.width / 2
+
+    def camera_settled(self, tolerance: float = 4.0) -> bool:
+        """Камера уже доехала до цели (с допуском)."""
+        return abs(self.camera - self.target_camera) <= tolerance
 
     def center_all(self) -> None:
         self.target_camera = (self.chain_left + self.chain_right) / 2
