@@ -56,9 +56,9 @@ class Sidebar:
         y = inner.top
 
         # Счёт
-        score_rect = pg.Rect(inner.left, y, inner.width, 104)
+        score_rect = pg.Rect(inner.left, y, inner.width, 84)
         draw_panel(surface, score_rect, theme, fill=theme.panel_alt, radius=theme.radius)
-        self._score(surface, theme, score_rect, scores, state)
+        self._score(surface, theme, score_rect, scores)
         y = score_rect.bottom + 18
 
         # Журнал
@@ -77,7 +77,8 @@ class Sidebar:
 
     # -- части --------------------------------------------------------------
 
-    def _score(self, surface, theme: Theme, rect: pg.Rect, scores, state: GameState) -> None:
+    def _score(self, surface, theme: Theme, rect: pg.Rect, scores) -> None:
+        """Только счёт партий: очки на руках показываются у самих рук."""
         left = rect.left + 16
         font_label = self.assets.body(12, bold=True)
         font_value = self.assets.heading(26)
@@ -101,13 +102,6 @@ class Sidebar:
         surface.blit(name, (ai_x + 18, py))
         value = text_image(font_value, str(scores[1]), theme.text)
         surface.blit(value, (ai_x + 18, py + 16))
-
-        # Очки на руках и базар
-        pips_font = self.assets.body(12)
-        mine = text_image(pips_font, f'{state.pips_of(0)} очк.', theme.text_dim)
-        theirs = text_image(pips_font, f'{state.pips_of(1)} очк.', theme.text_dim)
-        surface.blit(mine, (px + 18, py + 48))
-        surface.blit(theirs, (ai_x + 18, py + 48))
 
     def _log(self, surface, theme: Theme, rect: pg.Rect, state: GameState) -> None:
         title = text_image(self.assets.body(13, bold=True), 'ЖУРНАЛ', theme.text_dim)

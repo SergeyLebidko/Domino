@@ -609,7 +609,7 @@ class GameScene(Scene):
             x = area.left + index * (CELL_SMALL + 6)
             sprite.blit_at(surface, x, area.top)
 
-        text(surface, assets, f'ИИ · {self.session.state.pips_of(1)} очков',
+        text(surface, assets, f'ИИ · на руках {self.session.state.pips_of(1)}',
              (area.left, area.top + 2 * CELL_SMALL + 26), 13, theme.text_dim)
 
     def _draw_bazaar(self, surface, assets, theme) -> None:
@@ -649,6 +649,8 @@ class GameScene(Scene):
 
         label = f'Ваши кости: {len(state.hands[0])}'
         text(surface, assets, label, (rect.left + 18, rect.top + 12), 13, theme.text_dim, bold=True)
+        text(surface, assets, f'на руках {state.pips_of(0)}',
+             (rect.left + 150, rect.top + 12), 13, theme.text_dim)
 
         if not state.hands[0]:
             text(surface, assets, 'Рука пуста', (rect.centerx, rect.centery), 18, theme.text_dim,
