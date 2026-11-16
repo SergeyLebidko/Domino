@@ -315,6 +315,9 @@ class GameSession:
         self.add_log('Новая партия.', 'info')
         self.add_log(f'Первая кость: {self.state.chain[0].tile}.', 'info')
         self._refresh_hint()
+        # Без этого сцена не заметит смену состояния и оставит на экране
+        # поле и руку прошлой партии.
+        self._touch()
 
     def snapshot_scores(self) -> tuple[int, int]:
         return self.scores[0], self.scores[1]

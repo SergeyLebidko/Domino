@@ -352,6 +352,9 @@ class GameScene(Scene):
         self.session.restart()
         self.ctx.first_player = self.session.state.turn
         self.result_shown = False
+        # Кнопки пересоздадутся при следующем результате, уже без зависших
+        # состояний наведения и нажатия.
+        self.result_panel = None
         self._log_seen = 0
         self.sidebar.log.clear()
         self.hand.clear_selection()
@@ -718,6 +721,23 @@ class GameScene(Scene):
             settings.H // 2 - 200,
         )
 
+    def _ensure_result_panel(self) -> list[Button]:
+        """Кнопки экрана результата создаются один раз.
+
+        Если пересоздавать их при каждой отрисовке, нажатие (MOUSEBUTTONDOWN)
+        попадает в один объект, а отпускание (MOUSEBUTTONUP) — уже в другой,
+        и клик никогда не завершается.
+        """
+        if self.result_panel is None:
+            rect = self._result_rect()
+            self.result_panel = [
+                Button(pg.Rect(rect.left + 40, rect.bottom - 86, 220, 48), 'Играть ещё',
+                       self._restart, style='primary'),
+                Button(pg.Rect(rect.left + 280, rect.bottom - 86, 220, 48), 'В меню',
+                       self._back_to_menu),
+            ]
+        return self.result_panel
+
     def _handle_result(self, event: pg.event.Event) -> None:
         if event.type == pg.KEYDOWN:
             if event.key in (pg.K_RETURN, pg.K_KP_ENTER, pg.K_SPACE, pg.K_r):
@@ -725,8 +745,10 @@ class GameScene(Scene):
             elif event.key == pg.K_ESCAPE:
                 self._back_to_menu()
             return
-        if event.type == pg.MOUSEBUTTONDOWN and self.result_panel:
-            for button in self.result_panel:
+        # Кнопки срабатывают по MOUSEBUTTONUP, поэтому им нужны все события
+        # мыши: наведение и нажатие тоже.
+        if event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEBUTTONUP):
+            for button in self._ensure_result_panel():
                 if button.handle(event):
                     return
 
@@ -771,12 +793,7 @@ class GameScene(Scene):
         text(surface, assets, f'Счёт сессии: {self.session.scores[0]} : {self.session.scores[1]}',
              (rect.centerx, row.bottom + 22), 15, theme.text, anchor='center')
 
-        buttons = [
-            Button(pg.Rect(rect.left + 40, rect.bottom - 86, 220, 48), 'Играть ещё', self._restart,
-                   style='primary'),
-            Button(pg.Rect(rect.left + 280, rect.bottom - 86, 220, 48), 'В меню', self._back_to_menu),
-        ]
-        self.result_panel = buttons
+        buttons = self._ensure_result_panel()
         for button in buttons:
             button.draw(surface, assets, theme)
 
