@@ -36,13 +36,6 @@ class Theme:
     accent: Color
     accent_hover: Color
     accent_text: Color
-    # Кости
-    tile_face: Color
-    tile_face_edge: Color
-    tile_edge: Color
-    pip: Color
-    tile_back: Color
-    tile_back_pattern: Color
     # Стороны
     player: Color
     ai: Color
@@ -51,6 +44,7 @@ class Theme:
     shadow: ColorA
     # Геометрия и шрифты
     radius: int
+    #: Радиус скругления кости — задаёт подсветку конца при перетаскивании.
     tile_radius: int
     heading_font: str  # 'sans' | 'serif'
     body_font: str
@@ -74,12 +68,6 @@ FLAT_DARK = Theme(
     accent=(47, 198, 176),
     accent_hover=(72, 219, 197),
     accent_text=(6, 32, 29),
-    tile_face=(244, 241, 233),
-    tile_face_edge=(214, 208, 194),
-    tile_edge=(168, 160, 144),
-    pip=(37, 43, 52),
-    tile_back=(58, 67, 82),
-    tile_back_pattern=(72, 83, 101),
     player=(47, 198, 176),
     ai=(232, 118, 108),
     success=(94, 204, 132),
@@ -109,12 +97,6 @@ CLUB_GREEN = Theme(
     accent=(217, 180, 90),
     accent_hover=(236, 202, 118),
     accent_text=(38, 30, 12),
-    tile_face=(248, 243, 228),
-    tile_face_edge=(226, 216, 192),
-    tile_edge=(184, 168, 132),
-    pip=(45, 40, 32),
-    tile_back=(96, 70, 40),
-    tile_back_pattern=(120, 90, 54),
     player=(126, 214, 152),
     ai=(230, 140, 120),
     success=(126, 214, 152),
@@ -144,12 +126,6 @@ WARM_WOOD = Theme(
     accent=(224, 148, 86),
     accent_hover=(242, 172, 112),
     accent_text=(48, 26, 12),
-    tile_face=(250, 242, 224),
-    tile_face_edge=(232, 220, 196),
-    tile_edge=(196, 176, 148),
-    pip=(70, 48, 34),
-    tile_back=(122, 84, 58),
-    tile_back_pattern=(146, 104, 72),
     player=(246, 186, 120),
     ai=(214, 112, 96),
     success=(168, 208, 130),

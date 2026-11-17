@@ -44,9 +44,12 @@ HINT_W = 26
 
 DEFAULT_THEME = 'flat_dark'
 DEFAULT_DIFFICULTY = 'medium'
+#: Набор оформления костей, независимый от темы стола.
+DEFAULT_TILES = 'bone'
 
 #: Допустимые значения для проверки пользовательского конфига.
 THEME_KEYS = ('flat_dark', 'club_green', 'warm_wood')
+TILES_KEYS = ('bone', 'graphite', 'amber')
 DIFFICULTY_KEYS = ('easy', 'medium', 'hard')
 
 RULES = Rules(

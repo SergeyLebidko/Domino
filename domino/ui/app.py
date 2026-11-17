@@ -11,6 +11,7 @@ import pygame as pg
 from domino import settings
 from domino.ui.assets import Assets
 from domino.ui.theme import get_theme, next_theme
+from domino.ui.tiles import get_skin, next_skin
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Context:
 
     assets: Assets
     theme: str = settings.DEFAULT_THEME
+    tiles: str = settings.DEFAULT_TILES
     difficulty: str = settings.DEFAULT_DIFFICULTY
     first_player: int = 0
     scores: list[int] | None = None
@@ -32,12 +34,25 @@ class Context:
     def palette(self):
         return self.assets.theme
 
+    @property
+    def skin(self):
+        """Текущий набор оформления костей."""
+        return self.assets.skin
+
     def set_theme(self, key: str) -> None:
         self.theme = key
         self.assets.set_theme(get_theme(key))
 
     def cycle_theme(self) -> None:
         self.set_theme(next_theme(self.theme).key)
+
+    def set_tiles(self, key: str) -> None:
+        skin = get_skin(key)
+        self.tiles = skin.key
+        self.assets.set_skin(skin)
+
+    def cycle_tiles(self) -> None:
+        self.set_tiles(next_skin(self.tiles).key)
 
 
 class Scene:
@@ -68,7 +83,8 @@ class Scene:
 
 class App:
     def __init__(self, *, theme: str | None = None, difficulty: str | None = None,
-                 debug: bool = False, headless: bool = False) -> None:
+                 tiles: str | None = None, debug: bool = False,
+                 headless: bool = False) -> None:
         pg.init()
         if not headless:
             pg.display.set_caption(settings.WINDOW_TITLE)
@@ -79,8 +95,11 @@ class App:
 
         theme = theme or settings.DEFAULT_THEME
         difficulty = difficulty or settings.DEFAULT_DIFFICULTY
-        assets = Assets(get_theme(theme), (settings.W, settings.H))
-        self.ctx = Context(assets=assets, theme=theme, difficulty=difficulty, debug=debug)
+        tiles = tiles or settings.DEFAULT_TILES
+        skin = get_skin(tiles)
+        assets = Assets(get_theme(theme), (settings.W, settings.H), skin)
+        self.ctx = Context(assets=assets, theme=theme, tiles=skin.key,
+                           difficulty=difficulty, debug=debug)
 
         self.scenes: list[Scene] = []
         self._pending: list[tuple[str, object]] = []
@@ -154,6 +173,9 @@ class App:
                 if event.type == pg.KEYDOWN and event.key == pg.K_F2:
                     self.ctx.cycle_theme()
                     continue
+                if event.type == pg.KEYDOWN and event.key == pg.K_F3:
+                    self.ctx.cycle_tiles()
+                    continue
                 scene = self.scene
                 if scene is not None:
                     scene.handle(event)
@@ -178,7 +200,9 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description='Домино')
     parser.add_argument('--theme', choices=['flat_dark', 'club_green', 'warm_wood'],
-                        default=None, help='визуальная тема')
+                        default=None, help='визуальная тема стола')
+    parser.add_argument('--tiles', choices=['bone', 'graphite', 'amber'],
+                        default=None, help='оформление костей')
     parser.add_argument('--difficulty', choices=['easy', 'medium', 'hard'],
                         default=None, help='сложность ИИ')
     parser.add_argument('--skip-menu', action='store_true', help='сразу начать партию')
@@ -188,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
     app = App(
         theme=args.theme or saved.theme,
         difficulty=args.difficulty or saved.difficulty,
+        tiles=args.tiles or saved.tiles,
         debug=args.debug,
     )
     app.ctx.first_player = saved.first_player
@@ -204,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         Config(
             theme=app.ctx.theme,
+            tiles=app.ctx.tiles,
             difficulty=app.ctx.difficulty,
             first_player=app.ctx.first_player,
         ).save()

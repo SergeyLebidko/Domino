@@ -278,6 +278,21 @@ def _paint_icon(
         width = max(3, int(size * 0.13))
         pg.draw.line(surface, color, (cx - arm, cy - arm), (cx + arm, cy + arm), width)
         pg.draw.line(surface, color, (cx + arm, cy - arm), (cx - arm, cy + arm), width)
+        return
+
+    if name == 'tiles':
+        # Горизонтальное домино 2:1. Точки на 18 px сливаются с рамкой,
+        # поэтому узнаваемость держится на контуре и перегородке.
+        width = int(size * 0.94)
+        height = int(size * 0.56)
+        thickness = max(2, int(size * 0.09))
+        rect = pg.Rect(cx - width // 2, cy - height // 2, width, height)
+        radius = max(2, min(width, height) // 4)
+        pg.draw.rect(surface, color, rect, thickness, border_radius=radius)
+        pg.draw.line(surface, color,
+                     (cx, rect.top + thickness // 2 + 1),
+                     (cx, rect.bottom - thickness // 2 - 1),
+                     max(1, thickness - 1))
 
 
 def icon_button_width(assets: Assets, label: str, font_size: int = 17,

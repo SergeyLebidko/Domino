@@ -32,7 +32,7 @@ def _icon_bbox(surface: pg.Surface) -> pg.Rect | None:
     return bbox
 
 
-@pytest.mark.parametrize('name', ['palette', 'restart', 'pause', 'menu', 'close'])
+@pytest.mark.parametrize('name', ['tiles', 'palette', 'restart', 'pause', 'menu', 'close'])
 def test_icon_is_centered(app, name):
     """Глиф обязан быть визуально отцентрирован в кнопке."""
     rect = pg.Rect(0, 0, 40, 40)
@@ -49,7 +49,7 @@ def test_icon_is_centered(app, name):
     assert dy <= 1.5, f'{name}: смещение по Y {dy}'
 
 
-@pytest.mark.parametrize('name', ['palette', 'restart', 'pause'])
+@pytest.mark.parametrize('name', ['tiles', 'palette', 'restart', 'pause'])
 def test_icon_fits_inside_button(app, name):
     """Глиф не выходит за границы кнопки."""
     rect = pg.Rect(0, 0, 40, 40)
@@ -59,7 +59,7 @@ def test_icon_fits_inside_button(app, name):
     assert rect.contains(bbox), f'{name}: {bbox} выходит за {rect}'
 
 
-@pytest.mark.parametrize('name', ['palette', 'restart', 'pause'])
+@pytest.mark.parametrize('name', ['tiles', 'palette', 'restart', 'pause'])
 def test_icon_has_visible_pixels(app, name):
     """Глиф должен быть заметным, а не парой случайных пикселей."""
     rect = pg.Rect(0, 0, 40, 40)
@@ -75,7 +75,7 @@ def test_topbar_buttons_have_text_labels(app):
 
     scene = GameScene(app)
     labels = {button.icon: button.label for button in scene.buttons}
-    assert set(labels) == {'palette', 'restart', 'pause'}
+    assert set(labels) == {'tiles', 'palette', 'restart', 'pause'}
     for icon, label in labels.items():
         assert label, f'кнопка {icon} без подписи'
 

@@ -164,7 +164,7 @@ def test_pause_scene_draws(app):
     pause = PauseScene(app)
     pause.update(0.016)
     pause.draw(app.screen)
-    assert len(pause.buttons) == 3
+    assert len(pause.buttons) == 4
     assert scene.session.tile_count_ok
 
 

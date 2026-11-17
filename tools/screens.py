@@ -16,16 +16,18 @@ import pygame as pg  # noqa: E402
 
 from domino.ui.app import App  # noqa: E402
 from domino.ui.theme import THEME_ORDER  # noqa: E402
+from domino.ui.tiles import SKIN_ORDER  # noqa: E402
 
 
-def make_app(theme: str) -> App:
-    return App(theme=theme, headless=True)
+def make_app(theme: str, tiles: str | None = None) -> App:
+    return App(theme=theme, tiles=tiles, headless=True)
 
 
-def render_menu(theme: str, path: str, difficulty: str = 'medium') -> None:
+def render_menu(theme: str, path: str, difficulty: str = 'medium',
+                tiles: str | None = None) -> None:
     from domino.ui.scenes import MenuScene
 
-    app = make_app(theme)
+    app = make_app(theme, tiles)
     app.ctx.difficulty = difficulty
     scene = MenuScene(app)
     scene.update(0.016)
@@ -72,10 +74,11 @@ def capture_chain(scene, steps: int = 7, seed: int = 5) -> None:
     return best
 
 
-def render_game(theme: str, path: str, difficulty: str = 'medium', steps: int = 7) -> None:
+def render_game(theme: str, path: str, difficulty: str = 'medium', steps: int = 7,
+                tiles: str | None = None) -> None:
     from domino.ui.scenes import GameScene
 
-    app = make_app(theme)
+    app = make_app(theme, tiles)
     app.ctx.difficulty = difficulty
     app.ctx.first_player = 0
     scene = GameScene(app)
@@ -104,10 +107,11 @@ def render_game(theme: str, path: str, difficulty: str = 'medium', steps: int = 
     pg.image.save(app.screen, path)
 
 
-def render_result(theme: str, path: str, difficulty: str = 'medium') -> None:
+def render_result(theme: str, path: str, difficulty: str = 'medium',
+                  tiles: str | None = None) -> None:
     from domino.ui.scenes import GameScene
 
-    app = make_app(theme)
+    app = make_app(theme, tiles)
     app.ctx.difficulty = difficulty
     scene = GameScene(app)
     session = scene.session
@@ -139,6 +143,12 @@ def render_themes(out_dir: str) -> list[str]:
             path = os.path.join(out_dir, f'{name}_{theme}.png')
             render(theme, path)
             written.append(path)
+
+    # Отдельные снимки наборов костей: тема одна, меняется только кость.
+    for tiles in SKIN_ORDER:
+        path = os.path.join(out_dir, f'tiles_{tiles}.png')
+        render_game(THEME_ORDER[0], path, tiles=tiles)
+        written.append(path)
     return written
 
 

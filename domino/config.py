@@ -27,6 +27,7 @@ CONFIG_PATH = GAME_DIR / CONFIG_NAME
 @dataclass
 class Config:
     theme: str = settings.DEFAULT_THEME
+    tiles: str = settings.DEFAULT_TILES
     difficulty: str = settings.DEFAULT_DIFFICULTY
     first_player: int = 0
 
@@ -43,6 +44,8 @@ class Config:
         config = cls()
         if data.get('theme') in settings.THEME_KEYS:
             config.theme = data['theme']
+        if data.get('tiles') in settings.TILES_KEYS:
+            config.tiles = data['tiles']
         if data.get('difficulty') in settings.DIFFICULTY_KEYS:
             config.difficulty = data['difficulty']
         if data.get('first_player') in (0, 1):

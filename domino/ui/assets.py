@@ -14,6 +14,7 @@ from pathlib import Path
 import pygame as pg
 
 from domino.ui.theme import Theme
+from domino.ui.tiles import TileSkin, get_skin
 
 #: Раскладка точек на половинке кости в координатах [-1, 0, 1].
 PIP_LAYOUT: dict[int, tuple[tuple[int, int], ...]] = {
@@ -60,8 +61,10 @@ class TileSprite:
 
 
 class Assets:
-    def __init__(self, theme: Theme, size: tuple[int, int]) -> None:
+    def __init__(self, theme: Theme, size: tuple[int, int],
+                 skin: TileSkin | str | None = None) -> None:
         self.theme = theme
+        self.skin = get_skin(skin) if isinstance(skin, str) or skin is None else skin
         self.size = size
         self._fonts: dict[tuple[int, bool, str], pg.font.Font] = {}
         self._tiles: dict[tuple[int, int, bool, int], TileSprite] = {}
@@ -83,6 +86,15 @@ class Assets:
         self._shadows.clear()
         self._background = None
         self._board = None
+
+    def set_skin(self, skin: TileSkin | str) -> None:
+        """Меняет набор костей. Тема стола остаётся прежней."""
+        resolved = get_skin(skin) if isinstance(skin, str) else skin
+        if resolved == self.skin:
+            return
+        self.skin = resolved
+        self._tiles.clear()
+        self._backs.clear()
 
     # -- шрифты -------------------------------------------------------------
 
@@ -134,7 +146,7 @@ class Assets:
         key = (first, second, vertical, cell)
         sprite = self._tiles.get(key)
         if sprite is None:
-            sprite = render_tile(self.theme, first, second, vertical, cell)
+            sprite = render_tile(self.skin, first, second, vertical, cell)
             self._tiles[key] = sprite
         return sprite
 
@@ -142,7 +154,7 @@ class Assets:
         key = (cell, vertical)
         sprite = self._backs.get(key)
         if sprite is None:
-            sprite = render_tile_back(self.theme, cell, vertical)
+            sprite = render_tile_back(self.skin, cell, vertical)
             self._backs[key] = sprite
         return sprite
 
@@ -275,7 +287,7 @@ def _draw_vignette(surface: pg.Surface) -> None:
 
 
 def render_tile(
-    theme: Theme,
+    skin: TileSkin,
     first: int,
     second: int,
     vertical: bool,
@@ -288,7 +300,7 @@ def render_tile(
         width, height = 2 * cell, cell
 
     surface = pg.Surface((width + 2 * pad, height + 2 * pad), pg.SRCALPHA)
-    radius = max(3, int(theme.tile_radius * cell / 56))
+    radius = max(3, int(skin.radius * cell / 56))
 
     # Тень.
     shadow = pg.Surface((width, height), pg.SRCALPHA)
@@ -298,32 +310,40 @@ def render_tile(
     surface.blit(shadow, (pad + 1, pad + max(2, cell // 14)))
 
     face = pg.Rect(pad, pad, width, height)
-    pg.draw.rect(surface, theme.tile_face_edge, face, border_radius=radius)
+    pg.draw.rect(surface, skin.face_edge, face, border_radius=radius)
     inner = face.inflate(-2, -2)
-    pg.draw.rect(surface, theme.tile_face, inner, border_radius=max(2, radius - 1))
+    pg.draw.rect(surface, skin.face, inner, border_radius=max(2, radius - 1))
 
-    # Блик сверху.
-    highlight = pg.Surface((inner.width, inner.height), pg.SRCALPHA)
-    pg.draw.rect(highlight, (255, 255, 255, 46), highlight.get_rect(), border_radius=max(2, radius - 1))
-    pg.draw.rect(
-        highlight,
-        (255, 255, 255, 0),
-        pg.Rect(0, max(2, inner.height // 3), inner.width, inner.height),
-        border_radius=max(2, radius - 1),
-    )
-    surface.blit(highlight, inner.topleft)
+    # Блик сверху: плавный градиент, иначе на тёмных костях он читается
+    # как резкая светлая полоса.
+    if skin.gloss > 0:
+        highlight = pg.Surface((inner.width, inner.height), pg.SRCALPHA)
+        band = max(2, int(inner.height * 0.42))
+        for index in range(band):
+            alpha = int(skin.gloss * (1 - index / band) ** 1.4)
+            if alpha <= 0:
+                continue
+            pg.draw.line(highlight, (255, 255, 255, alpha),
+                         (0, index), (inner.width, index))
+        mask = pg.Surface((inner.width, inner.height), pg.SRCALPHA)
+        pg.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
+                     border_radius=max(2, radius - 1))
+        highlight.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+        surface.blit(highlight, inner.topleft)
 
     # Разделитель между половинками.
     if vertical:
         y = pad + cell
-        pg.draw.line(surface, theme.tile_edge, (pad + cell // 7, y), (pad + width - cell // 7, y), max(1, cell // 40))
+        pg.draw.line(surface, skin.divider, (pad + cell // 7, y),
+                     (pad + width - cell // 7, y), max(1, cell // 40))
         halves = (
             pg.Rect(pad, pad, width, cell),
             pg.Rect(pad, pad + cell, width, cell),
         )
     else:
         x = pad + cell
-        pg.draw.line(surface, theme.tile_edge, (x, pad + cell // 7), (x, pad + height - cell // 7), max(1, cell // 40))
+        pg.draw.line(surface, skin.divider, (x, pad + cell // 7),
+                     (x, pad + height - cell // 7), max(1, cell // 40))
         halves = (
             pg.Rect(pad, pad, cell, height),
             pg.Rect(pad + cell, pad, cell, height),
@@ -332,14 +352,14 @@ def render_tile(
     pip_radius = max(2, int(cell * 0.082))
     inset = cell * 0.24
     for rect, value in zip(halves, (first, second)):
-        _draw_pips(surface, theme, rect, value, pip_radius, inset)
+        _draw_pips(surface, skin, rect, value, pip_radius, inset)
 
     return TileSprite(surface, pad, width, height)
 
 
 def _draw_pips(
     surface: pg.Surface,
-    theme: Theme,
+    skin: TileSkin,
     half: pg.Rect,
     value: int,
     radius: int,
@@ -355,7 +375,7 @@ def _draw_pips(
     layout = PIP_LAYOUT[value]
 
     # Максимальное смещение по сетке [-1..1] определяет шаг.
-    spread = usable * PIP_SPREAD
+    spread = usable * skin.pip_spread
     # Минимальный шаг, при котором точки не касаются: диаметр + зазор.
     minimum = radius * 2 + max(1, radius // 2)
     step_x = step_y = max(spread, minimum)
@@ -364,24 +384,37 @@ def _draw_pips(
     step_x = min(step_x, limit)
     step_y = min(step_y, limit)
 
+    inset_style = skin.pip_style == 'inset' and radius >= 3
     for gx, gy in layout:
-        x = cx + gx * step_x
-        y = cy + gy * step_y
-        if radius >= 3:
-            pg.draw.aacircle(surface, theme.pip, (int(x), int(y)), radius)
-            pg.draw.aacircle(surface, theme.pip, (int(x), int(y)), radius - 1)
+        x = int(cx + gx * step_x)
+        y = int(cy + gy * step_y)
+        if inset_style:
+            # Вдавленная точка: сверху тень, снизу светлый край — как резьба.
+            _draw_inset_pip(surface, skin, x, y, radius)
+        elif radius >= 3:
+            pg.draw.aacircle(surface, skin.pip, (x, y), radius)
+            pg.draw.aacircle(surface, skin.pip, (x, y), radius - 1)
         else:
-            pg.draw.circle(surface, theme.pip, (int(x), int(y)), radius)
+            pg.draw.circle(surface, skin.pip, (x, y), radius)
 
 
-def render_tile_back(theme: Theme, cell: int, vertical: bool = True) -> TileSprite:
+def _draw_inset_pip(surface: pg.Surface, skin: TileSkin, x: int, y: int, radius: int) -> None:
+    """Углублённая точка: тень сверху-слева, подсветка снизу-справа."""
+    dark = tuple(max(0, c - 42) for c in skin.face)
+    light = tuple(min(255, c + 54) for c in skin.face)
+    pg.draw.circle(surface, light, (x + 1, y + 1), radius)
+    pg.draw.circle(surface, dark, (x - 1, y - 1), radius - 1)
+    pg.draw.aacircle(surface, skin.pip, (x, y), max(1, radius - 2))
+
+
+def render_tile_back(skin: TileSkin, cell: int, vertical: bool = True) -> TileSprite:
     pad = max(4, cell // 7)
     if vertical:
         width, height = cell, 2 * cell
     else:
         width, height = 2 * cell, cell
     surface = pg.Surface((width + 2 * pad, height + 2 * pad), pg.SRCALPHA)
-    radius = max(3, int(theme.tile_radius * cell / 56))
+    radius = max(3, int(skin.radius * cell / 56))
 
     shadow = pg.Surface((width, height), pg.SRCALPHA)
     pg.draw.rect(shadow, (0, 0, 0, 90), shadow.get_rect(), border_radius=radius)
@@ -389,17 +422,38 @@ def render_tile_back(theme: Theme, cell: int, vertical: bool = True) -> TileSpri
     surface.blit(shadow, (pad + 1, pad + 2))
 
     face = pg.Rect(pad, pad, width, height)
-    pg.draw.rect(surface, theme.tile_back, face, border_radius=radius)
-    pg.draw.rect(surface, theme.tile_back_pattern, face.inflate(-2, -2), 2, border_radius=max(2, radius - 1))
+    pg.draw.rect(surface, skin.back, face, border_radius=radius)
 
-    # Ромб по центру — «рубашка». Рисуем линиями: у draw.polygon с толщиной
-    # чернила ложатся несимметрично (сдвиг +1 px). Полуразмер берём чётным,
-    # чтобы полная высота ромба делилась на два без остатка — иначе при
-    # чётной высоте кости он смещается на полпикселя.
+    cx, cy = face.center
+    if skin.back_style == 'frame':
+        _draw_back_frame(surface, skin, face, radius)
+    elif skin.back_style == 'lattice':
+        _draw_back_lattice(surface, skin, face)
+    else:
+        _draw_back_diamond(surface, skin, face, cell, cx, cy)
+
+    return TileSprite(surface, pad, width, height)
+
+
+def _draw_back_diamond(
+    surface: pg.Surface,
+    skin: TileSkin,
+    face: pg.Rect,
+    cell: int,
+    cx: int,
+    cy: int,
+) -> None:
+    """Ромб по центру — «рубашка».
+
+    Рисуем линиями: у draw.polygon с толщиной чернила ложатся несимметрично
+    (сдвиг +1 px). Полуразмер берём чётным, чтобы полная высота ромба делилась
+    на два без остатка — иначе при чётной высоте кости он смещается.
+    """
+    pg.draw.rect(surface, skin.back_pattern, face.inflate(-2, -2), 2,
+                 border_radius=max(2, max(3, int(skin.radius * cell / 56)) - 1))
     step = cell // 5
     if step % 2:
         step += 1
-    cx, cy = face.center
     corners = [
         (cx, cy - step),
         (cx + step, cy),
@@ -407,11 +461,45 @@ def render_tile_back(theme: Theme, cell: int, vertical: bool = True) -> TileSpri
         (cx - step, cy),
     ]
     for index in range(4):
-        pg.draw.line(surface, theme.tile_back_pattern,
+        pg.draw.line(surface, skin.back_pattern,
                      corners[index], corners[(index + 1) % 4], 1)
-    pg.draw.line(surface, theme.tile_back_pattern,
-                 (pad + 4, cy), (pad + width - 4, cy), 1)
-    return TileSprite(surface, pad, width, height)
+    pg.draw.line(surface, skin.back_pattern,
+                 (face.left + 4, cy), (face.right - 4, cy), 1)
+
+
+def _draw_back_frame(surface: pg.Surface, skin: TileSkin, face: pg.Rect, radius: int) -> None:
+    """Рамка с заполненным ядром — строгий «оникс»."""
+    margin = max(4, face.width // 10)
+    outer = face.inflate(-2 * margin, -2 * margin)
+    pg.draw.rect(surface, skin.back_pattern, outer, 2, border_radius=max(2, radius - 2))
+
+    inner = outer.inflate(-max(4, face.width // 7), -max(4, face.width // 7))
+    if inner.width > 6 and inner.height > 6:
+        # Ядро чуть светлее рамки: на мелких костях иначе видна только рамка.
+        core = tuple(min(255, c + 14) for c in skin.back)
+        pg.draw.rect(surface, core, inner, border_radius=max(1, radius - 4))
+        pg.draw.rect(surface, skin.back_pattern, inner, 1, border_radius=max(1, radius - 4))
+        pg.draw.circle(surface, skin.back_pattern, inner.center, max(2, face.width // 16))
+
+
+def _draw_back_lattice(surface: pg.Surface, skin: TileSkin, face: pg.Rect) -> None:
+    """Диагональная сетка — тёплая «янтарная» рубашка."""
+    pg.draw.rect(surface, skin.back_pattern, face.inflate(-2, -2), 2,
+                 border_radius=max(2, int(skin.radius * face.width / 56) - 1))
+
+    layer = pg.Surface(face.size, pg.SRCALPHA)
+    step = max(6, face.width // 4)
+    width, height = layer.get_size()
+    for offset in range(-height, width, step):
+        pg.draw.line(layer, (*skin.back_pattern, 150), (offset, 0), (offset + height, height), 1)
+        pg.draw.line(layer, (*skin.back_pattern, 150), (offset + height, 0), (offset, height), 1)
+
+    # Сетка не должна вылезать за скруглённые углы.
+    mask = pg.Surface(face.size, pg.SRCALPHA)
+    pg.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(),
+                 border_radius=max(2, int(skin.radius * face.width / 56)))
+    layer.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+    surface.blit(layer, face.topleft)
 
 
 def render_glow(theme: Theme, width: int, height: int, vertical: bool = False) -> pg.Surface:

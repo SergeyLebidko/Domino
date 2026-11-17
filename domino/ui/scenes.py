@@ -18,6 +18,7 @@ from domino.ui.hand import Hand
 from domino.ui.session import GameSession
 from domino.ui.sidebar import LogEntry, Sidebar
 from domino.ui.theme import THEME_ORDER, THEMES
+from domino.ui.tiles import SKIN_ORDER, SKINS
 from domino.ui.widgets import Button, Segmented, draw_panel, draw_tooltip, text
 
 
@@ -42,10 +43,16 @@ class MenuScene(Scene):
                       for index, key in enumerate(DIFFICULTIES)]
 
         self.theme_select = Segmented(
-            pg.Rect(w // 2 - 260, 548, 520, 46),
+            pg.Rect(w // 2 - 260, 548, 250, 46),
             [(key, THEMES[key].title) for key in THEME_ORDER],
             self._set_theme,
             self.ctx.theme,
+        )
+        self.tiles_select = Segmented(
+            pg.Rect(w // 2 + 10, 548, 250, 46),
+            [(key, SKINS[key].title) for key in SKIN_ORDER],
+            self._set_tiles,
+            self.ctx.tiles,
         )
         self.first_select = Segmented(
             pg.Rect(w // 2 - 260, 626, 520, 46),
@@ -64,6 +71,9 @@ class MenuScene(Scene):
 
     def _set_theme(self, key: str) -> None:
         self.ctx.set_theme(key)
+
+    def _set_tiles(self, key: str) -> None:
+        self.ctx.set_tiles(key)
 
     def _set_first(self, key: str) -> None:
         self.ctx.first_player = int(key)
@@ -95,6 +105,7 @@ class MenuScene(Scene):
                     return
 
         self.theme_select.handle(event)
+        self.tiles_select.handle(event)
         self.first_select.handle(event)
         self.start_button.handle(event)
         self.quit_button.handle(event)
@@ -116,7 +127,7 @@ class MenuScene(Scene):
         text(
             surface,
             assets,
-            'Классическая игра. Три уровня соперника, три оформления стола.',
+            'Классическая игра. Три уровня соперника, три темы стола и три набора костей.',
             (settings.W // 2, 246),
             17,
             theme.text_dim,
@@ -127,8 +138,10 @@ class MenuScene(Scene):
         for key, rect in self.cards:
             self._draw_card(surface, assets, theme, key, rect)
 
-        text(surface, assets, 'ТЕМА ОФОРМЛЕНИЯ', (settings.W // 2 - 260, 524), 13, theme.text_dim, bold=True)
+        text(surface, assets, 'ТЕМА СТОЛА', (settings.W // 2 - 260, 524), 13, theme.text_dim, bold=True)
         self.theme_select.draw(surface, assets, theme)
+        text(surface, assets, 'КОСТИ', (settings.W // 2 + 10, 524), 13, theme.text_dim, bold=True)
+        self.tiles_select.draw(surface, assets, theme)
         text(surface, assets, 'ПЕРВЫЙ ХОД', (settings.W // 2 - 260, 602), 13, theme.text_dim, bold=True)
         self.first_select.draw(surface, assets, theme)
 
@@ -138,7 +151,7 @@ class MenuScene(Scene):
         text(
             surface,
             assets,
-            'Enter — начать   •   F2 — сменить тему   •   Esc — выход',
+            'Enter — начать   •   F2 — тема стола   •   F3 — кости   •   Esc — выход',
             (settings.W // 2, settings.H - 24),
             14,
             theme.text_dim,
@@ -295,17 +308,28 @@ class GameScene(Scene):
         )
         self.btn_theme = Button(
             pg.Rect(right - 118 - 128 - 116 - gap * 2, top, 116, height),
-            'Тема',
+            THEMES[self.ctx.theme].title,
             self._cycle_theme,
             icon='palette',
             radius=10,
         )
-        # Порядок слева направо: тема, новая партия, пауза.
-        self.buttons = [self.btn_theme, self.btn_restart, self.btn_pause]
+        self.btn_tiles = Button(
+            pg.Rect(right - 118 - 128 - 116 - 116 - gap * 3, top, 116, height),
+            SKINS[self.ctx.tiles].title,
+            self._cycle_tiles,
+            icon='tiles',
+            radius=10,
+        )
+        # Порядок слева направо: кости, тема, новая партия, пауза.
+        self.buttons = [self.btn_tiles, self.btn_theme, self.btn_restart, self.btn_pause]
 
     def _cycle_theme(self) -> None:
         self.ctx.cycle_theme()
         self.btn_theme.label = THEMES[self.ctx.theme].title
+
+    def _cycle_tiles(self) -> None:
+        self.ctx.cycle_tiles()
+        self.btn_tiles.label = SKINS[self.ctx.tiles].title
 
     # -- данные ---------------------------------------------------------------
 
@@ -807,16 +831,18 @@ class PauseScene(Scene):
     def __init__(self, app) -> None:
         super().__init__(app)
         self.time = 0.0
-        self.rect = pg.Rect(0, 0, 400, 340).move(
+        self.rect = pg.Rect(0, 0, 400, 430).move(
             settings.W // 2 - 200,
-            settings.H // 2 - 170,
+            settings.H // 2 - 215,
         )
         self.buttons = [
             Button(pg.Rect(self.rect.left + 40, self.rect.top + 110, 320, 50), 'Продолжить',
                    self._resume, style='primary'),
             Button(pg.Rect(self.rect.left + 40, self.rect.top + 172, 320, 50),
                    f'Тема: {THEMES[self.ctx.theme].title}', self.ctx.cycle_theme),
-            Button(pg.Rect(self.rect.left + 40, self.rect.top + 234, 320, 50), 'В меню',
+            Button(pg.Rect(self.rect.left + 40, self.rect.top + 234, 320, 50),
+                   f'Кости: {SKINS[self.ctx.tiles].title}', self.ctx.cycle_tiles),
+            Button(pg.Rect(self.rect.left + 40, self.rect.top + 296, 320, 50), 'В меню',
                    self._menu),
         ]
 
@@ -839,6 +865,7 @@ class PauseScene(Scene):
     def update(self, dt: float) -> None:
         self.time += dt
         self.buttons[1].label = f'Тема: {THEMES[self.ctx.theme].title}'
+        self.buttons[2].label = f'Кости: {SKINS[self.ctx.tiles].title}'
 
     def draw(self, surface: pg.Surface) -> None:
         theme = self.ctx.palette
@@ -854,5 +881,5 @@ class PauseScene(Scene):
              bold=True, heading=True, anchor='center')
         for button in self.buttons:
             button.draw(surface, assets, theme)
-        text(surface, assets, 'Esc — продолжить   •   F2 — сменить тему',
+        text(surface, assets, 'Esc — продолжить   •   F2 — тема   •   F3 — кости',
              (self.rect.centerx, self.rect.bottom - 22), 12, theme.text_dim, anchor='center')

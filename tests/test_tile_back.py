@@ -1,4 +1,4 @@
-"""Тесты обратной стороны кости: ромб должен быть отцентрирован."""
+"""Тесты обратной стороны кости: узор должен быть симметричен и отцентрирован."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import pytest  # noqa: E402
 
 from domino.ui.assets import Assets  # noqa: E402
 from domino.ui.theme import THEME_ORDER, get_theme  # noqa: E402
+from domino.ui.tiles import SKIN_ORDER, SKINS  # noqa: E402
 
 
 @pytest.fixture(scope='module')
@@ -21,8 +22,8 @@ def app():
     pg.quit()
 
 
-def _pattern_bbox(sprite, color) -> pg.Rect:
-    """Границы узора внутри лица, без рамки и центральной линии."""
+def _diamond_bbox(sprite, color) -> pg.Rect:
+    """Границы ромба внутри лица, без рамки и центральной линии."""
     surface = sprite.surface
     pad = sprite.pad
     face = pg.Rect(pad, pad, sprite.width, sprite.height)
@@ -44,14 +45,27 @@ def _pattern_bbox(sprite, color) -> pg.Rect:
     return pg.Rect(left, top, right - left + 1, bottom - top + 1)
 
 
+def _pattern_mask(sprite, color) -> pg.Mask:
+    """Маска пикселей узора рубашки."""
+    surface = sprite.surface
+    pad = sprite.pad
+    layer = pg.Surface((sprite.width, sprite.height), pg.SRCALPHA)
+    for y in range(sprite.height):
+        for x in range(sprite.width):
+            pixel = surface.get_at((pad + x, pad + y))
+            if all(abs(pixel[i] - color[i]) < 26 for i in range(3)) and pixel.a > 120:
+                layer.set_at((x, y), (255, 255, 255, 255))
+    return pg.mask.from_surface(layer)
+
+
 @pytest.mark.parametrize('theme', THEME_ORDER)
 @pytest.mark.parametrize('cell', [34, 56, 60])
 def test_diamond_is_centered(app, theme, cell):
     """Регрессия: ромб был смещён на 1 px из-за draw.polygon с толщиной."""
-    palette = get_theme(theme)
-    sprite = Assets(palette, (10, 10)).tile_back(cell, True)
+    skin = SKINS['bone']
+    sprite = Assets(get_theme(theme), (10, 10), skin).tile_back(cell, True)
 
-    bbox = _pattern_bbox(sprite, palette.tile_back_pattern)
+    bbox = _diamond_bbox(sprite, skin.back_pattern)
     face_center_x = sprite.pad + sprite.width / 2
     face_center_y = sprite.pad + sprite.height / 2
 
@@ -66,9 +80,9 @@ def test_diamond_is_centered(app, theme, cell):
 @pytest.mark.parametrize('cell', [34, 56, 60])
 def test_diamond_center_matches_face_center(app, cell):
     """Центр ромба совпадает с центром лица по обеим осям."""
-    palette = get_theme('flat_dark')
-    sprite = Assets(palette, (10, 10)).tile_back(cell, True)
-    bbox = _pattern_bbox(sprite, palette.tile_back_pattern)
+    skin = SKINS['bone']
+    sprite = Assets(get_theme('flat_dark'), (10, 10), skin).tile_back(cell, True)
+    bbox = _diamond_bbox(sprite, skin.back_pattern)
 
     face_center_x = sprite.pad + sprite.width / 2
     face_center_y = sprite.pad + sprite.height / 2
@@ -76,11 +90,11 @@ def test_diamond_center_matches_face_center(app, cell):
     assert abs(bbox.centery - face_center_y) <= 1
 
 
-def test_horizontal_line_is_centered(app):
-    """Разделительная линия идёт ровно по центру кости."""
-    palette = get_theme('flat_dark')
+def test_diamond_horizontal_line_is_centered(app):
+    """Разделительная линия идёт ровно по центру кости (набор «Кость»)."""
+    skin = SKINS['bone']
     for cell in (34, 56, 60):
-        sprite = Assets(palette, (10, 10)).tile_back(cell, True)
+        sprite = Assets(get_theme('flat_dark'), (10, 10), skin).tile_back(cell, True)
         surface = sprite.surface
 
         # Берём участок справа от ромба, но внутри лица — там только линия.
@@ -88,7 +102,7 @@ def test_horizontal_line_is_centered(app):
         rows = []
         for y in range(sprite.pad + 6, sprite.pad + sprite.height - 6):
             pixel = surface.get_at((x, y))
-            if all(abs(pixel[i] - palette.tile_back_pattern[i]) < 14 for i in range(3)):
+            if all(abs(pixel[i] - skin.back_pattern[i]) < 14 for i in range(3)):
                 rows.append(y)
 
         assert rows, f'cell={cell}: линия не найдена'
@@ -99,10 +113,40 @@ def test_horizontal_line_is_centered(app):
         )
 
 
-def test_back_of_horizontal_tile_works(app):
+@pytest.mark.parametrize('skin_key', SKIN_ORDER)
+@pytest.mark.parametrize('cell', [34, 56, 60])
+def test_back_pattern_is_centered_in_every_skin(app, skin_key, cell):
+    """Узор любой рубашки отцентрирован по обеим осям лица."""
+    skin = SKINS[skin_key]
+    sprite = Assets(get_theme('flat_dark'), (10, 10), skin).tile_back(cell, True)
+    mask = _pattern_mask(sprite, skin.back_pattern)
+    bbox = mask.get_bounding_rects()[0].unionall(mask.get_bounding_rects()[1:])
+
+    assert abs(bbox.centerx - sprite.width / 2) <= 1.5, (
+        f'{skin_key}/{cell}: узор смещён по X на {bbox.centerx - sprite.width / 2}'
+    )
+    assert abs(bbox.centery - sprite.height / 2) <= 1.5, (
+        f'{skin_key}/{cell}: узор смещён по Y на {bbox.centery - sprite.height / 2}'
+    )
+
+
+@pytest.mark.parametrize('skin_key', SKIN_ORDER)
+def test_back_pattern_is_visible(app, skin_key):
+    """Узор рубашки заметен, а не пара пикселей."""
+    skin = SKINS[skin_key]
+    sprite = Assets(get_theme('flat_dark'), (10, 10), skin).tile_back(56, True)
+    mask = _pattern_mask(sprite, skin.back_pattern)
+    # Даже у рамки и сетки узор занимает десятки пикселей.
+    assert mask.count() > 60, f'{skin_key}: узор почти не виден ({mask.count()} px)'
+
+
+@pytest.mark.parametrize('skin_key', SKIN_ORDER)
+def test_back_of_horizontal_tile_works(app, skin_key):
     """Горизонтальная рубашка (2×1) тоже рисуется и центрируется."""
-    palette = get_theme('flat_dark')
-    sprite = Assets(palette, (10, 10)).tile_back(56, vertical=False)
+    skin = SKINS[skin_key]
+    sprite = Assets(get_theme('flat_dark'), (10, 10), skin).tile_back(56, vertical=False)
     assert sprite.width == 112 and sprite.height == 56
-    bbox = _pattern_bbox(sprite, palette.tile_back_pattern)
-    assert abs(bbox.centerx - (sprite.pad + sprite.width / 2)) <= 0.5
+    mask = _pattern_mask(sprite, skin.back_pattern)
+    rects = mask.get_bounding_rects()
+    bbox = rects[0].unionall(rects[1:])
+    assert abs(bbox.centerx - sprite.width / 2) <= 1.5

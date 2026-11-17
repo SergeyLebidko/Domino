@@ -10,7 +10,8 @@ import pygame as pg  # noqa: E402
 import pytest  # noqa: E402
 
 from domino.ui.app import App  # noqa: E402
-from domino.ui.assets import PIP_LAYOUT  # noqa: E402
+from domino.ui.assets import PIP_LAYOUT, Assets  # noqa: E402
+from domino.ui.tiles import SKIN_ORDER, SKINS  # noqa: E402
 
 
 @pytest.fixture(scope='module')
@@ -27,12 +28,13 @@ def _pip_blobs(surface: pg.Surface) -> list[pg.Rect]:
     return mask.get_bounding_rects()
 
 
+@pytest.mark.parametrize('skin_key', SKIN_ORDER)
 @pytest.mark.parametrize('cell', [56, 60])
 @pytest.mark.parametrize('value', [1, 2, 3, 4, 5, 6])
-def test_pips_do_not_merge(app, cell, value):
+def test_pips_do_not_merge(app, skin_key, cell, value):
     """Каждая точка — отдельное пятно: иначе кружки «слипаются»."""
-    assets = app.ctx.assets
-    sprite = assets.tile(value, value, True, cell)
+    skin = SKINS[skin_key]
+    sprite = Assets(app.ctx.palette, (10, 10), skin).tile(value, value, True, cell)
 
     # Берём только верхнюю половинку кости, чтобы не смешивать две стороны.
     half = pg.Surface((sprite.width, sprite.height // 2), pg.SRCALPHA)
@@ -40,7 +42,7 @@ def test_pips_do_not_merge(app, cell, value):
 
     # Маска по пикселям цвета точек.
     raw = pg.Surface(half.get_size(), pg.SRCALPHA)
-    pip = app.ctx.palette.pip
+    pip = skin.pip
     for y in range(half.get_height()):
         for x in range(half.get_width()):
             pixel = half.get_at((x, y))
@@ -56,10 +58,11 @@ def test_pips_do_not_merge(app, cell, value):
     )
 
 
+@pytest.mark.parametrize('skin_key', SKIN_ORDER)
 @pytest.mark.parametrize('cell', [56, 60])
-def test_pips_stay_inside_tile(app, cell):
+def test_pips_stay_inside_tile(app, skin_key, cell):
     """Точки не выходят за границы половинки кости."""
-    assets = app.ctx.assets
+    assets = Assets(app.ctx.palette, (10, 10), SKINS[skin_key])
     for value in range(1, 7):
         sprite = assets.tile(value, value, True, cell)
         assert sprite.surface.get_size() == (sprite.width + 2 * sprite.pad,
@@ -80,7 +83,7 @@ def test_logo_tile_has_single_pips(app):
     half = pg.Surface((sprite.width, sprite.height // 2), pg.SRCALPHA)
     half.blit(sprite.surface, (0, 0))
 
-    pip = app.ctx.palette.pip
+    pip = app.ctx.skin.pip
     raw = pg.Surface(half.get_size(), pg.SRCALPHA)
     for y in range(half.get_height()):
         for x in range(half.get_width()):
