@@ -24,6 +24,11 @@ SHOTS = (
     ('game_club_green.png', 'club_green', None, render_game),
     ('menu_warm_wood.png', 'warm_wood', None, render_menu),
     ('game_warm_wood.png', 'warm_wood', None, render_game),
+    # Светлые темы.
+    ('menu_linen.png', 'linen', None, render_menu),
+    ('game_linen.png', 'linen', None, render_game),
+    ('menu_sky.png', 'sky', None, render_menu),
+    ('game_sky.png', 'sky', None, render_game),
     # Наборы костей: тема одна, меняется только оформление костяшек.
     ('tiles_graphite.png', 'flat_dark', 'graphite', render_game),
     ('tiles_amber.png', 'warm_wood', 'amber', render_game),

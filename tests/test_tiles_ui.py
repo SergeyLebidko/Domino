@@ -47,13 +47,17 @@ def test_menu_has_tiles_selector(app):
     assert options == list(SKIN_ORDER)
 
 
-def test_menu_tiles_selector_does_not_overlap_theme(app):
-    """Два выбора в одной строке не должны перекрываться."""
+def test_menu_selectors_do_not_overlap(app):
+    """Пять тем не влезают в половину строки — выборы идут друг под другом."""
     scene = MenuScene(app)
-    theme_rect = scene.theme_select.rect
-    tiles_rect = scene.tiles_select.rect
-    assert not theme_rect.colliderect(tiles_rect), 'выборы темы и костей наезжают'
-    assert theme_rect.right < tiles_rect.left
+    rows = [scene.theme_select.rect, scene.tiles_select.rect, scene.first_select.rect]
+    for index, first in enumerate(rows):
+        for second in rows[index + 1:]:
+            assert not first.colliderect(second), 'ряды выбора наезжают друг на друга'
+
+    # Все три идут сверху вниз в порядке отрисовки.
+    assert scene.theme_select.rect.bottom <= scene.tiles_select.rect.top
+    assert scene.tiles_select.rect.bottom <= scene.first_select.rect.top
 
 
 def test_menu_click_changes_skin(app):

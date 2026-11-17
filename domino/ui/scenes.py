@@ -42,32 +42,35 @@ class MenuScene(Scene):
         self.cards = [(key, pg.Rect(x + index * (card_w + gap), y, card_w, card_h))
                       for index, key in enumerate(DIFFICULTIES)]
 
+        column = pg.Rect(w // 2 - 260, 0, 520, 46)
         self.theme_select = Segmented(
-            pg.Rect(w // 2 - 260, 548, 250, 46),
+            column.move(0, 540),
             [(key, THEMES[key].title) for key in THEME_ORDER],
             self._set_theme,
             self.ctx.theme,
         )
         self.tiles_select = Segmented(
-            pg.Rect(w // 2 + 10, 548, 250, 46),
+            column.move(0, 614),
             [(key, SKINS[key].title) for key in SKIN_ORDER],
             self._set_tiles,
             self.ctx.tiles,
         )
         self.first_select = Segmented(
-            pg.Rect(w // 2 - 260, 626, 520, 46),
+            column.move(0, 688),
             [('0', 'Я хожу первым'), ('1', 'Первым ходит ИИ')],
             self._set_first,
             str(self.ctx.first_player),
         )
+        # «Начать игру» и «Выход» в одной строке: иначе четыре ряда выбора
+        # не помещаются в окно вместе с подсказкой внизу.
         self.start_button = Button(
-            pg.Rect(w // 2 - 160, 706, 320, 56),
+            pg.Rect(w // 2 - 250, 762, 330, 54),
             'Начать игру',
             self._start,
             style='primary',
             radius=self.ctx.palette.radius + 4,
         )
-        self.quit_button = Button(pg.Rect(w // 2 - 90, 782, 180, 42), 'Выход', self.app.quit)
+        self.quit_button = Button(pg.Rect(w // 2 + 96, 768, 154, 42), 'Выход', self.app.quit)
 
     def _set_theme(self, key: str) -> None:
         self.ctx.set_theme(key)
@@ -127,7 +130,7 @@ class MenuScene(Scene):
         text(
             surface,
             assets,
-            'Классическая игра. Три уровня соперника, три темы стола и три набора костей.',
+            'Классическая игра. Три уровня соперника, пять тем стола и три набора костей.',
             (settings.W // 2, 246),
             17,
             theme.text_dim,
@@ -138,11 +141,11 @@ class MenuScene(Scene):
         for key, rect in self.cards:
             self._draw_card(surface, assets, theme, key, rect)
 
-        text(surface, assets, 'ТЕМА СТОЛА', (settings.W // 2 - 260, 524), 13, theme.text_dim, bold=True)
+        text(surface, assets, 'ТЕМА СТОЛА', (settings.W // 2 - 260, 516), 13, theme.text_dim, bold=True)
         self.theme_select.draw(surface, assets, theme)
-        text(surface, assets, 'КОСТИ', (settings.W // 2 + 10, 524), 13, theme.text_dim, bold=True)
+        text(surface, assets, 'КОСТИ', (settings.W // 2 - 260, 590), 13, theme.text_dim, bold=True)
         self.tiles_select.draw(surface, assets, theme)
-        text(surface, assets, 'ПЕРВЫЙ ХОД', (settings.W // 2 - 260, 602), 13, theme.text_dim, bold=True)
+        text(surface, assets, 'ПЕРВЫЙ ХОД', (settings.W // 2 - 260, 664), 13, theme.text_dim, bold=True)
         self.first_select.draw(surface, assets, theme)
 
         self.start_button.draw(surface, assets, theme)
@@ -213,6 +216,11 @@ class MenuScene(Scene):
                 line = trial
         if line:
             surface.blit(text_image(font, line, color), (rect.left, y))
+
+
+#: Множитель приглушения неактивной панели руки: гасит яркость на ~12 %.
+#: Процент одинаков в любой теме, поэтому панель «уходит назад» везде.
+DIM_PANEL = 224
 
 
 class GameScene(Scene):
@@ -705,9 +713,13 @@ class GameScene(Scene):
         state = self.session.state
         active = state.turn == 0 and not self.session.is_over
         if not active:
-            overlay = pg.Surface(rect.size, pg.SRCALPHA)
-            overlay.fill((0, 0, 0, 40))
-            surface.blit(overlay, rect.topleft)
+            # Приглушаем умножением, а не чёрной заливкой: умножение гасит
+            # панель в любой теме на один и тот же процент и сохраняет
+            # оттенок. Чёрный полупрозрачный слой на светлом столе давал
+            # грязно-серое пятно, а на тёмном «Клубе» почти не работал.
+            overlay = pg.Surface(rect.size)
+            overlay.fill((DIM_PANEL,) * 3)
+            surface.blit(overlay, rect.topleft, special_flags=pg.BLEND_RGB_MULT)
 
         self.hand.draw(surface, state, theme, interactive=active,
                        dragging=self.drag_tile is not None)

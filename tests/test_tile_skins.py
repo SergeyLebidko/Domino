@@ -133,22 +133,21 @@ def test_tile_face_uses_skin_color(app, skin_key, cell):
     )
 
 
-def test_skin_is_independent_of_theme(app):
-    """Один набор в разных темах даёт одинаковые кости."""
-    images = []
-    for theme_key in THEME_ORDER:
-        assets = Assets(get_theme(theme_key), (10, 10), SKINS['amber'])
-        sprite = assets.tile(5, 2, True, 56)
-        images.append(sprite.surface.copy())
+def test_skin_colors_do_not_depend_on_theme(app):
+    """Цвета лица и точек берутся из набора, а не из темы стола.
 
-    first = images[0]
-    for other in images[1:]:
-        for y in range(0, first.get_height(), 3):
-            for x in range(0, first.get_width(), 3):
-                a, b = first.get_at((x, y)), other.get_at((x, y))
-                assert all(abs(a[i] - b[i]) <= 2 for i in range(3)), (
-                    f'кость набора не зависит от темы: {a[:3]} != {b[:3]}'
-                )
+    Тема влияет только на обводку — она появляется, когда кость сливается
+    с полем. Поэтому сверяем не картинку целиком, а цвет в центре половинки.
+    """
+    skin = SKINS['amber']
+    for theme_key in THEME_ORDER:
+        sprite = Assets(get_theme(theme_key), (10, 10), skin).tile(0, 0, True, 56)
+        # Центр верхней (пустой) половинки — чистое лицо без точек и обводки.
+        pixel = sprite.surface.get_at((sprite.pad + sprite.width // 2,
+                                       sprite.pad + 14))[:3]
+        assert all(abs(pixel[i] - skin.face[i]) < 26 for i in range(3)), (
+            f'{theme_key}: лицо {pixel} вместо {skin.face}'
+        )
 
 
 def test_set_skin_clears_cache(app):

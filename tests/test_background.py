@@ -41,7 +41,7 @@ def _expected(theme, x: int, y: int) -> tuple[float, float, float]:
 
     depth = min(x, y, settings.W - 1 - x, settings.H - 1 - y)
     depth = min(depth, VIGNETTE_BAND - 1)
-    alpha = int(70 * (1 - depth / VIGNETTE_BAND) ** 2)
+    alpha = int(theme.vignette_alpha * (1 - depth / VIGNETTE_BAND) ** 2)
     return tuple(channel * (1 - alpha / 255) for channel in base)
 
 

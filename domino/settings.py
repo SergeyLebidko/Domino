@@ -48,7 +48,7 @@ DEFAULT_DIFFICULTY = 'medium'
 DEFAULT_TILES = 'bone'
 
 #: Допустимые значения для проверки пользовательского конфига.
-THEME_KEYS = ('flat_dark', 'club_green', 'warm_wood')
+THEME_KEYS = ('flat_dark', 'club_green', 'warm_wood', 'linen', 'sky')
 TILES_KEYS = ('bone', 'graphite', 'amber')
 DIFFICULTY_KEYS = ('easy', 'medium', 'hard')
 

@@ -14,7 +14,7 @@ from pathlib import Path
 import pygame as pg
 
 from domino.ui.theme import Theme
-from domino.ui.tiles import TileSkin, get_skin
+from domino.ui.tiles import Color, TileSkin, get_skin, outline_for
 
 #: Раскладка точек на половинке кости в координатах [-1, 0, 1].
 PIP_LAYOUT: dict[int, tuple[tuple[int, int], ...]] = {
@@ -146,7 +146,8 @@ class Assets:
         key = (first, second, vertical, cell)
         sprite = self._tiles.get(key)
         if sprite is None:
-            sprite = render_tile(self.skin, first, second, vertical, cell)
+            sprite = render_tile(self.skin, first, second, vertical, cell,
+                                 board=self.theme.board)
             self._tiles[key] = sprite
         return sprite
 
@@ -192,10 +193,12 @@ def render_background(theme: Theme, size: tuple[int, int]) -> pg.Surface:
         _draw_flat_pattern(surface, theme)
     elif theme.style == 'felt':
         _draw_felt_pattern(surface, theme)
-    else:
+    elif theme.style == 'wood':
         _draw_wood_pattern(surface, theme)
+    else:
+        _draw_paper_pattern(surface, theme)
 
-    _draw_vignette(surface)
+    _draw_vignette(surface, theme.vignette_alpha)
     return surface
 
 
@@ -268,12 +271,51 @@ def _draw_wood_pattern(surface: pg.Surface, theme: Theme) -> None:
     surface.blit(layer, (0, 0))
 
 
-def _draw_vignette(surface: pg.Surface) -> None:
+def _draw_paper_pattern(surface: pg.Surface, theme: Theme) -> None:
+    """Светлые темы: тонкая бумажная текстура без дерева и сукна.
+
+    Волокна идут почти незаметно и только светлее фона: тёмные пятна на
+    светлом читаются как грязь.
+    """
+    rng = random.Random(23)
+    layer = pg.Surface(surface.get_size(), pg.SRCALPHA)
+    width, height = surface.get_size()
+
+    # Крупные мягкие пятна — неровность бумаги.
+    for _ in range(26):
+        x = rng.randrange(width)
+        y = rng.randrange(height)
+        radius = rng.randint(90, 260)
+        alpha = rng.randint(4, 10)
+        pg.draw.circle(layer, (255, 255, 255, alpha), (x, y), radius)
+
+    # Волокна: короткие светлые штрихи.
+    for _ in range(700):
+        x = rng.randrange(width)
+        y = rng.randrange(height)
+        length = rng.randint(6, 26)
+        alpha = rng.randint(8, 18)
+        pg.draw.line(layer, (255, 255, 255, alpha), (x, y), (x + length, y), 1)
+
+    # Лёгкое свечение акцента сверху — как подсветка листа.
+    glow = pg.Surface((width, 380), pg.SRCALPHA)
+    for step in range(30, 0, -1):
+        alpha = int(theme.pattern_alpha * 0.8 * (step / 30) ** 2)
+        radius = int(width * 0.5 * step / 30)
+        pg.draw.ellipse(
+            glow, (*theme.accent, alpha),
+            (width // 2 - radius, 190 - radius // 4, radius * 2, radius // 2),
+        )
+    layer.blit(glow, (0, 0), special_flags=pg.BLEND_ADD)
+    surface.blit(layer, (0, 0))
+
+
+def _draw_vignette(surface: pg.Surface, strength: int = 70) -> None:
     width, height = surface.get_size()
     layer = pg.Surface(surface.get_size(), pg.SRCALPHA)
     band = 140
     for i in range(band):
-        alpha = int(70 * (1 - i / band) ** 2)
+        alpha = int(strength * (1 - i / band) ** 2)
         color = (0, 0, 0, alpha)
         pg.draw.rect(layer, color, (i, i, width - i * 2, height - i * 2), 1)
     surface.blit(layer, (0, 0))
@@ -285,6 +327,7 @@ def render_tile(
     second: int,
     vertical: bool,
     cell: int,
+    board: Color | None = None,
 ) -> TileSprite:
     pad = max(5, cell // 7)
     if vertical:
@@ -306,6 +349,14 @@ def render_tile(
     pg.draw.rect(surface, skin.face_edge, face, border_radius=radius)
     inner = face.inflate(-2, -2)
     pg.draw.rect(surface, skin.face, inner, border_radius=max(2, radius - 1))
+
+    # Светлая кость на светлом столе (и тёмная на тёмном) держится только
+    # за счёт обводки: собственный кант набора слишком близок к фону поля.
+    # Рисуем тонкой линией по краю лица, а не рамкой — рамка съедала лицо.
+    outline = outline_for(skin.face, board) if board is not None else None
+    if outline is not None:
+        thickness = max(1, cell // 26)
+        pg.draw.rect(surface, outline, face, thickness, border_radius=radius)
 
     # Блик сверху: плавный градиент, иначе на тёмных костях он читается
     # как резкая светлая полоса.

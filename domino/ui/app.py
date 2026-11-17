@@ -244,7 +244,8 @@ def main(argv: list[str] | None = None) -> int:
     saved = Config.load()
 
     parser = argparse.ArgumentParser(description='Домино')
-    parser.add_argument('--theme', choices=['flat_dark', 'club_green', 'warm_wood'],
+    parser.add_argument('--theme',
+                        choices=['flat_dark', 'club_green', 'warm_wood', 'linen', 'sky'],
                         default=None, help='визуальная тема стола')
     parser.add_argument('--tiles', choices=['bone', 'graphite', 'amber'],
                         default=None, help='оформление костей')

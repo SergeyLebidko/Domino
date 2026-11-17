@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domino.settings import CELL
-
 Color = tuple[int, int, int]
 
 #: Стили точек: круглые «наклеенные» или вдавленные с тенью.
@@ -45,7 +43,6 @@ class TileSkin:
     radius: int
     #: Насколько широко разносить точки, 0.5…0.9.
     pip_spread: float
-
 
 BONE = TileSkin(
     key='bone',
@@ -116,5 +113,34 @@ def next_skin(key: str) -> TileSkin:
     return SKINS[SKIN_ORDER[(index + 1) % len(SKIN_ORDER)]]
 
 
-#: Размер половинки кости, по которому задан ``radius`` набора.
-BASE_CELL = CELL
+#: Минимальная разница яркости между лицом кости и полем.
+#: Ниже этого порога кость теряется — например, «Оникс» на «Дереве»
+#: (контраст 2.6) или светлая кость на светлой теме.
+MIN_TILE_CONTRAST = 55
+
+
+def luminance(color: Color) -> float:
+    """Воспринимаемая яркость цвета (0…255)."""
+    return 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]
+
+
+def contrast(a: Color, b: Color) -> float:
+    """Разница яркости двух цветов."""
+    return abs(luminance(a) - luminance(b))
+
+
+def outline_for(face: Color, board: Color) -> Color | None:
+    """Цвет обводки, если кость сливается с полем. ``None`` — обводка не нужна.
+
+    Светлая кость на светлом столе и тёмная на тёмном держатся только за
+    счёт обводки: собственный кант набора слишком близок к фону.
+    """
+    if contrast(face, board) >= MIN_TILE_CONTRAST:
+        return None
+
+    # Направление обводки задаёт ФОН, а не лицо: на тёмном поле нужна
+    # светлая линия, на светлом — тёмная. Если считать от лица, тёмная
+    # кость на тёмном столе получает ещё более тёмный кант и не видна.
+    if luminance(board) < 128:
+        return tuple(min(255, int(c * 0.35) + 165) for c in board)
+    return tuple(max(0, int(c * 0.42)) for c in board)

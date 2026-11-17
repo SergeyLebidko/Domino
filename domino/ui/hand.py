@@ -16,6 +16,7 @@ from domino.settings import (
 )
 from domino.ui.assets import Assets
 from domino.ui.theme import Theme
+from domino.ui.tiles import luminance
 from domino.ui.widgets import approach
 
 #: Стрелки для подсказок левого и правого концов.
@@ -26,6 +27,22 @@ HINT_ARROW_SIZE = 9
 
 #: Во сколько раз рисуем стрелку крупнее перед сглаживанием.
 _ARROW_SUPERSAMPLE = 6
+
+#: Насколько приглушать неиграбельные кости (сдвиг яркости).
+DIM_STEP = 34
+
+
+def dim_alpha(theme: Theme, face=(246, 242, 231)) -> int:
+    """Прозрачность заливки, дающая одинаковый сдвиг яркости в любой теме.
+
+    Фиксированная чёрная заливка на тёмном столе гасит кость почти вдвое,
+    а на светлом почти не видна. Поэтому силу считаем от разницы между
+    лицом кости и фоном темы.
+    """
+    difference = abs(luminance(face) - luminance(theme.bg_bottom))
+    if difference < 1:
+        return 90
+    return max(40, min(190, int(DIM_STEP / difference * 255)))
 
 
 def _draw_hint_arrow(
@@ -290,8 +307,12 @@ class Hand:
 
             sides = grouped.get(tile.tile, set())
             if not sides and interactive:
+                # Неиграбельные кости приглушаются. Чёрная заливка годится
+                # только для тёмных тем: на светлом столе она превращает
+                # кость в грязно-серое пятно. Силу берём так, чтобы сдвиг
+                # яркости был одинаковым на светлом и тёмном столе.
                 dim = pg.Surface((CELL_HAND, 2 * CELL_HAND), pg.SRCALPHA)
-                dim.fill((0, 0, 0, 74))
+                dim.fill((*theme.bg_bottom, dim_alpha(theme, self.assets.skin.face)))
                 surface.blit(dim, (tile.rect.x, y))
             elif sides and tile.index != self.active:
                 self._dot(surface, theme, tile, y)
