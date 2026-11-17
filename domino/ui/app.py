@@ -81,6 +81,55 @@ class Scene:
         pass
 
 
+def render_app_icon(size: int = 64) -> pg.Surface:
+    """Иконка приложения: вертикальная костяшка 1:1.
+
+    Рисуется в 4 раза крупнее и уменьшается сглаживанием — на 16–32 px
+    обычные круги и скругления получаются рваными.
+    """
+    scale = 4
+    big = size * scale
+    surface = pg.Surface((big, big), pg.SRCALPHA)
+
+    # Поля: кость занимает почти всё поле, но с воздухом по краям.
+    width = int(big * 0.64)
+    height = int(big * 0.94)
+    left = (big - width) // 2
+    top = (big - height) // 2
+    radius = max(2 * scale, int(big * 0.10))
+
+    face = pg.Rect(left, top, width, height)
+    # Кант и лицо: светлая кость с тёмными точками — узнаётся в трее.
+    pg.draw.rect(surface, (206, 199, 184), face, border_radius=radius)
+    inner = face.inflate(-2 * scale, -2 * scale)
+    pg.draw.rect(surface, (247, 243, 233), inner, border_radius=max(1, radius - scale))
+
+    # Перегородка ровно по центру.
+    divider = max(scale, big // 48)
+    pg.draw.line(surface, (168, 158, 140),
+                 (inner.left + width // 8, face.centery),
+                 (inner.right - width // 8, face.centery), divider)
+
+    # По одной точке в каждой половинке — кость 1:1.
+    pip_radius = max(2 * scale, int(big * 0.085))
+    half = height // 4
+    for cy in (face.centery - half, face.centery + half):
+        _blit_smooth_circle(surface, (40, 45, 54), (face.centerx, cy), pip_radius)
+
+    return pg.transform.smoothscale(surface, (size, size))
+
+
+def _blit_smooth_circle(
+    surface: pg.Surface,
+    color: tuple[int, int, int],
+    center: tuple[int, int],
+    radius: int,
+) -> None:
+    """Сглаженный круг: два наложенных aacircle дают мягкий край."""
+    pg.draw.aacircle(surface, color, center, radius)
+    pg.draw.aacircle(surface, color, center, radius - 1)
+
+
 class App:
     def __init__(self, *, theme: str | None = None, difficulty: str | None = None,
                  tiles: str | None = None, debug: bool = False,
@@ -126,13 +175,9 @@ class App:
         return pg.display.set_mode((settings.W, settings.H), flags)
 
     def _set_icon(self) -> None:
-        size = 32
-        icon = pg.Surface((size, size), pg.SRCALPHA)
-        pg.draw.rect(icon, (240, 240, 235), (2, 2, 28, 28), border_radius=6)
-        pg.draw.line(icon, (60, 60, 60), (16, 5), (16, 27), 2)
-        for cx, cy in ((10, 10), (22, 22), (22, 10), (10, 22)):
-            pg.draw.circle(icon, (40, 40, 40), (cx, cy), 2)
-        pg.display.set_icon(icon)
+        # 64 px: Windows и Linux сами уменьшают до нужного размера в трее,
+        # а запас пикселей сохраняет сглаженные края.
+        pg.display.set_icon(render_app_icon(64))
 
     # -- сцены --------------------------------------------------------------
 
