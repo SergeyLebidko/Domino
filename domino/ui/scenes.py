@@ -216,13 +216,14 @@ class MenuScene(Scene):
 
 
 class GameScene(Scene):
-    def __init__(self, app) -> None:
+    def __init__(self, app, seed: int | None = None) -> None:
         super().__init__(app)
         self.session = GameSession(
             rules=settings.RULES,
             difficulty=self.ctx.difficulty,
             first_player=self.ctx.first_player,
-            seed=random.randrange(1 << 30),
+            # Сид нужен снимкам и тестам: иначе раздача каждый раз новая.
+            seed=random.randrange(1 << 30) if seed is None else seed,
         )
         self.session.scores = list(self.ctx.scores)
 

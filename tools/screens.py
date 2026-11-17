@@ -18,6 +18,9 @@ from domino.ui.app import App  # noqa: E402
 from domino.ui.theme import THEME_ORDER  # noqa: E402
 from domino.ui.tiles import SKIN_ORDER  # noqa: E402
 
+#: Сид раздачи для снимков: без него каждый прогон даёт другую картинку.
+SCENE_SEED = 12
+
 
 def make_app(theme: str, tiles: str | None = None) -> App:
     return App(theme=theme, tiles=tiles, headless=True)
@@ -81,7 +84,7 @@ def render_game(theme: str, path: str, difficulty: str = 'medium', steps: int = 
     app = make_app(theme, tiles)
     app.ctx.difficulty = difficulty
     app.ctx.first_player = 0
-    scene = GameScene(app)
+    scene = GameScene(app, seed=SCENE_SEED)
     capture_chain(scene, steps, seed=7)
 
     scene.board.set_state(scene.session.state)
@@ -113,7 +116,7 @@ def render_result(theme: str, path: str, difficulty: str = 'medium',
 
     app = make_app(theme, tiles)
     app.ctx.difficulty = difficulty
-    scene = GameScene(app)
+    scene = GameScene(app, seed=SCENE_SEED)
     session = scene.session
     session.enable_ai = False
     rng = random.Random(3)
