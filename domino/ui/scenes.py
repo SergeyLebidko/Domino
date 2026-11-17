@@ -293,7 +293,6 @@ class GameScene(Scene):
             self.hand_rect.top - margin - content_top,
         )
         self.hand.panel = self.hand_rect
-        self.bazaar_rect = pg.Rect(0, 0, 150, 40)
 
     def _build_buttons(self) -> None:
         right = settings.W - settings.BOARD_MARGIN
@@ -502,7 +501,7 @@ class GameScene(Scene):
             self._maybe_start_ai()
 
     def _handle_click(self, pos) -> None:
-        if self.bazaar_rect.collidepoint(pos) or self._bazaar_visual().collidepoint(pos):
+        if self._bazaar_visual().collidepoint(pos):
             self._draw_from_bazaar()
             return
 
@@ -584,7 +583,17 @@ class GameScene(Scene):
     # -- отрисовка ------------------------------------------------------------
 
     def _bazaar_visual(self) -> pg.Rect:
-        return pg.Rect(self.board_rect.right - 190, self.topbar.bottom + 6, 168, 50)
+        """Панель базара в правом верхнем углу поля.
+
+        Отступ сверху совпадает с зазором между топбаром и полем, иначе
+        панель выглядит приклеенной к шапке.
+        """
+        return pg.Rect(
+            self.board_rect.right - settings.BAZAAR_W - 22,
+            self.topbar.bottom + settings.BAZAAR_GAP,
+            settings.BAZAAR_W,
+            settings.BAZAAR_H,
+        )
 
     def draw(self, surface: pg.Surface) -> None:
         theme = self.ctx.palette
@@ -693,11 +702,14 @@ class GameScene(Scene):
         border = theme.accent if active else theme.panel_edge
         draw_panel(surface, rect, theme, fill=fill, border=border, border_width=2 if active else 1)
 
-        sprite = assets.tile_back(22, True)
-        sprite.blit_at(surface, rect.left + 14, rect.top + 3)
+        # Кость по центру панели по вертикали: раньше она стояла в 3 px от
+        # краёв и выглядела прижатой.
+        sprite = assets.tile_back(settings.CELL_BAZAAR_TILE, True)
+        sprite.blit_at(surface, rect.left + 14,
+                       rect.centery - sprite.height // 2)
 
-        text(surface, assets, 'БАЗАР', (rect.left + 62, rect.top + 8), 11, theme.text_dim, bold=True)
-        text(surface, assets, str(state.bazaar_count), (rect.left + 62, rect.top + 22), 20,
+        text(surface, assets, 'БАЗАР', (rect.left + 62, rect.top + 10), 11, theme.text_dim, bold=True)
+        text(surface, assets, str(state.bazaar_count), (rect.left + 62, rect.top + 26), 20,
              theme.text, bold=True)
 
         if active:
