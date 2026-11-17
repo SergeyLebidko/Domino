@@ -227,6 +227,12 @@ def _draw_flat_pattern(surface: pg.Surface, theme: Theme) -> None:
 
 
 def _draw_felt_pattern(surface: pg.Surface, theme: Theme) -> None:
+    """Сухое сукно: частые крапинки и лёгкое свечение сверху.
+
+    Раньше по краю рисовалась деревянная рамка, но она не вписывалась в
+    раскладку: 22 px не влезали в зазор BOARD_MARGIN (18 px), и между
+    панелями торчали рваные полосы дерева. Теперь фон ровный.
+    """
     rng = random.Random(17)
     layer = pg.Surface(surface.get_size(), pg.SRCALPHA)
     for _ in range(5200):
@@ -235,19 +241,6 @@ def _draw_felt_pattern(surface: pg.Surface, theme: Theme) -> None:
         shade = rng.choice((18, 26, 40))
         pg.draw.circle(layer, (255, 255, 255, shade), (x, y), 1)
 
-    # Деревянная рамка по краю — визуальная «рамка стола».
-    frame = 22
-    wood = (86, 58, 32)
-    wood_dark = (64, 42, 22)
-    for offset, color in ((0, wood_dark), (4, wood), (frame - 6, wood)):
-        pg.draw.rect(layer, color, (offset, offset, surface.get_width() - offset * 2, surface.get_height() - offset * 2), frame)
-    inner = frame
-    pg.draw.rect(
-        layer,
-        (*theme.board_edge, 190),
-        (inner, inner, surface.get_width() - inner * 2, surface.get_height() - inner * 2),
-        3,
-    )
     surface.blit(layer, (0, 0))
 
 
